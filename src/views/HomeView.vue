@@ -63,32 +63,32 @@ const addPost = async (newContent) => {
       timestamp: serverTimestamp()
     }
 
-    // Add to posts collection
+    // 1. Add to posts collection
     const postRef = await addDoc(collection(firestore, 'posts'), newPost)
 
-    // Update current user's posts and feed
+    // 2. Check if user document exists
     const userRef = doc(firestore, 'users', user.value.uid)
-    const userDoc = await getDoc(userRef)
-    const userData = userDoc.data()
+    const userSnap = await getDoc(userRef)
 
-    const updatedPosts = [...(userData.posts || []), postRef.id]
-    await updateDoc(userRef, { posts: updatedPosts })
-
-    // Add new post to each follower's feed
-    const followers = userData.followers || []
-    for (const followerId of followers) {
-      const followerRef = doc(firestore, 'users', followerId)
-      const followerDoc = await getDoc(followerRef)
-      const followerData = followerDoc.data()
-      const updatedFeed = [postRef.id, ...(followerData.feed || [])]
-      await updateDoc(followerRef, { feed: updatedFeed })
+    if (!userSnap.exists()) {
+      // If not, create a new user document
+      await setDoc(userRef, {
+        email: user.value.email,
+        posts: [postRef.id],
+        followers: [],
+        following: []
+      })
+    } else {
+      // If exists, update their posts array
+      const userData = userSnap.data()
+      const updatedPosts = [...(userData.posts || []), postRef.id]
+      await updateDoc(userRef, { posts: updatedPosts })
     }
 
-    // Update local feed
+    // 3. Add to local UI
     posts.value.unshift({
       id: postRef.id,
-      author: user.value.email,
-      content: newContent,
+      ...newPost,
       timestamp: new Date().toISOString()
     })
 
