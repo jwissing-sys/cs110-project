@@ -16,6 +16,7 @@
 <script setup>
 import { ref } from 'vue'
 import { auth } from '../firebaseResources'
+import { onAuthStateChanged } from 'firebase/auth'
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -36,6 +37,10 @@ const login = async () => {
     errorMessage.value = error.message
   }
 }
+
+onAuthStateChanged(auth, (user) => {
+  isLoggedIn.value = !!user
+})
 
 const createAccount = async () => {
   try {
