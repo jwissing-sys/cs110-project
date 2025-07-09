@@ -65,7 +65,14 @@ li {
   margin-bottom: 0.5rem;
 }
 button {
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0.75rem;
   font-size: 0.9rem;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+button:hover {
+  background-color: #e5e5e5;
+  cursor: pointer;
 }
 </style>
