@@ -61,16 +61,19 @@ function addPost(newContent) {
 .home-container {
   display: flex;
   justify-content: space-between;
-  padding: 2rem;
   gap: 1.5rem;
   background-color: #f9f9f9;
-  min-height: 100vh;
+  padding: 2rem;
   box-sizing: border-box;
+
+  max-width: 1200px;
+  margin: 0 auto; /* center on large screens */
+  min-height: 100vh;
 }
 
 .left-panel,
 .right-panel {
-  width: 20%;
+  flex: 0 0 20%;
   background-color: #ffffff;
   border: 1px solid #ddd;
   padding: 1rem;
@@ -79,10 +82,8 @@ function addPost(newContent) {
 }
 
 .main-feed {
-  width: 60%;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  flex: 1;
+  min-width: 0; /* prevents overflow */
   background-color: #ffffff;
   border: 1px solid #ddd;
   padding: 1.5rem;
