@@ -10,6 +10,7 @@
 
 <script setup>
 import { computed } from 'vue'
+
 defineProps({
   post: Object
 })
@@ -21,11 +22,14 @@ const formattedDate = computed(() =>
 
 <style scoped>
 .post-item {
+  background-color: #fdfdfd;
   border: 1px solid #ddd;
-  padding: 1rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
   border-radius: 6px;
-  background-color: #fafafa;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
+
 .meta {
   display: flex;
   justify-content: space-between;
