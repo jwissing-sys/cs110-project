@@ -1,11 +1,11 @@
 <template>
   <div class="login-view">
-    <AuthPanel />
+    <LoginCreateAccount />
   </div>
 </template>
 
 <script setup>
-import AuthPanel from '../components/AuthPanel.vue'
+import LoginCreateAccount from '../components/LoginCreateAccount.vue'
 </script>
 
 <style scoped>
