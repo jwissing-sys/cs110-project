@@ -1,13 +1,21 @@
 <template>
   <div class="login-panel">
-    <h2>Login / Create Account</h2>
+    <h2>{{ isCreatingAccount ? 'Create Account' : 'Login' }}</h2>
+
     <input v-model="email" type="email" placeholder="Email" />
     <input v-model="password" type="password" placeholder="Password" />
+
     <div class="buttons">
-      <button @click="login">Log In</button>
-      <button @click="createAccount">Create Account</button>
+      <button v-if="!isCreatingAccount" @click="login">Log In</button>
+      <button v-else @click="createAccount">Create Account</button>
+
       <button v-if="isLoggedIn" @click="logout">Log Out</button>
+
+      <button class="toggle" @click="toggleMode">
+        {{ isCreatingAccount ? 'Already have an account? Log in' : "Don't have an account? Create one" }}
+      </button>
     </div>
+
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <p v-if="isLoggedIn">✅ Logged in as {{ auth.currentUser?.email }}</p>
   </div>
@@ -27,6 +35,14 @@ const email = ref('')
 const password = ref('')
 const errorMessage = ref('')
 const isLoggedIn = ref(false)
+const isCreatingAccount = ref(false)
+
+const toggleMode = () => {
+  isCreatingAccount.value = !isCreatingAccount.value
+  errorMessage.value = ''
+  email.value = ''
+  password.value = ''
+}
 
 const login = async () => {
   try {
@@ -37,10 +53,6 @@ const login = async () => {
     errorMessage.value = error.message
   }
 }
-
-onAuthStateChanged(auth, (user) => {
-  isLoggedIn.value = !!user
-})
 
 const createAccount = async () => {
   try {
@@ -61,6 +73,10 @@ const logout = async () => {
     errorMessage.value = error.message
   }
 }
+
+onAuthStateChanged(auth, (user) => {
+  isLoggedIn.value = !!user
+})
 </script>
 
 <style scoped>
@@ -81,6 +97,13 @@ input {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+.toggle {
+  background: none;
+  border: none;
+  color: #0077cc;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .error {
   color: red;

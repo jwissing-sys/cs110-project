@@ -30,12 +30,20 @@ const logout = async () => {
 header {
   background-color: #f5f5f5;
   padding: 1rem;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 nav {
   display: flex;
-  gap: 1rem;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 960px;
+  margin: 0 auto;
 }
 
 nav a {
@@ -46,5 +54,13 @@ nav a {
 
 nav a.router-link-exact-active {
   color: #42b983;
+}
+
+button {
+  background: none;
+  border: none;
+  color: #c00;
+  font-weight: bold;
+  cursor: pointer;
 }
 </style>

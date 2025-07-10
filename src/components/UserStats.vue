@@ -4,15 +4,25 @@ import { doc, getDoc } from 'firebase/firestore'
 import { firestore } from '../firebaseResources'
 
 const props = defineProps({
-  user: Object // must include .uid
+  user: {
+    type: Object,
+    required: true
+  }
 })
 
-const stats = ref({ posts: 0, followers: 0, following: 0 })
+const stats = ref({
+  posts: 0,
+  followers: 0,
+  following: 0
+})
 
 watchEffect(async () => {
-  if (!props.user?.uid) return
+  if (!props.user?.id && !props.user?.uid) return
 
-  const userSnap = await getDoc(doc(firestore, 'users', props.user.uid))
+  const userId = props.user.uid || props.user.id
+  const userRef = doc(firestore, 'users', userId)
+  const userSnap = await getDoc(userRef)
+
   if (userSnap.exists()) {
     const data = userSnap.data()
     stats.value.posts = data.posts?.length || 0
@@ -23,7 +33,7 @@ watchEffect(async () => {
 </script>
 
 <template>
-  <div>
+  <div class="user-stats">
     <h3>User Stats</h3>
     <p>Email: {{ user?.email }}</p>
     <p>Posts: {{ stats.posts }}</p>
@@ -31,7 +41,6 @@ watchEffect(async () => {
     <p>Following: {{ stats.following }}</p>
   </div>
 </template>
-
 
 <style scoped>
 .user-stats {

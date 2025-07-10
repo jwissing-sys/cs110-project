@@ -33,6 +33,7 @@ onMounted(async () => {
   const currentUserDoc = await getDoc(doc(firestore, 'users', currentUserId))
   const currentData = currentUserDoc.data()
   const followingList = currentData?.following || []
+  
 
   allUsersSnap.forEach((docSnap) => {
     const userData = docSnap.data()

@@ -5,7 +5,7 @@
     </aside>
 
     <section class="main-feed">
-      <h2>Posts by {{ viewedUser.email }}</h2>
+      <h2>Posts by {{ viewedUser?.email }}</h2>
       <PostFeed :posts="viewedPosts" />
     </section>
 
@@ -13,7 +13,7 @@
       <SuggestedFollowers
         :currentUser="null"
         :customList="[viewedUser]"
-        :title="`Follow ${viewedUser.email}`"
+        :title="`Follow ${viewedUser?.email}`"
       />
     </aside>
   </div>
@@ -27,10 +27,10 @@ import UserStats from '../components/UserStats.vue'
 import PostFeed from '../components/PostFeed.vue'
 import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 
-// mock route
 const route = useRoute()
 const userId = route.params.id
 
+// Mocked user document for viewing another user's profile
 const viewedUser = ref({
   id: userId,
   email: `${userId}@example.com`,
@@ -39,6 +39,7 @@ const viewedUser = ref({
   posts: ['postA', 'postB']
 })
 
+// Mocked posts by that user
 const viewedPosts = ref([
   {
     id: 1,
