@@ -85,7 +85,7 @@ const addPost = async (newContent) => {
       await updateDoc(userRef, { posts: updatedPosts })
     }
 
-    console.log('✅ Post added successfully to UI!')
+    alert('✅ Post submitted!')
     posts.value.unshift({
       id: postRef.id,
       ...newPost,
