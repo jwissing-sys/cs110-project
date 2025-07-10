@@ -1,59 +1,51 @@
 <template>
   <div class="profile-view">
-    <aside class="left-panel">
+    <aside class="left-panel" v-if="viewedUser">
       <UserStats :user="viewedUser" />
     </aside>
 
     <section class="main-feed">
       <h2>Posts by {{ viewedUser?.email }}</h2>
-      <PostFeed :posts="viewedPosts" />
+      <PostFeed :userId="viewedUser?.id" />
     </section>
 
-    <aside class="right-panel">
+    <aside class="right-panel" v-if="viewedUser">
       <SuggestedFollowers
         :currentUser="null"
         :customList="[viewedUser]"
-        :title="`Follow ${viewedUser?.email}`"
+        :title="`Follow ${viewedUser.email}`"
       />
     </aside>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
+import { doc, getDoc } from 'firebase/firestore'
+import { firestore } from '../firebaseResources'
 
 import UserStats from '../components/UserStats.vue'
 import PostFeed from '../components/PostFeed.vue'
 import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 
 const route = useRoute()
-const userId = route.params.id
+const viewedUser = ref(null)
 
-// Mocked user document for viewing another user's profile
-const viewedUser = ref({
-  id: userId,
-  email: `${userId}@example.com`,
-  followers: ['mock'],
-  following: [],
-  posts: ['postA', 'postB']
-})
+watchEffect(async () => {
+  const userId = route.params.id
+  if (!userId) return
 
-// Mocked posts by that user
-const viewedPosts = ref([
-  {
-    id: 1,
-    author: viewedUser.value.email,
-    content: 'Post from viewed user 1',
-    timestamp: new Date().toISOString()
-  },
-  {
-    id: 2,
-    author: viewedUser.value.email,
-    content: 'Post from viewed user 2',
-    timestamp: new Date().toISOString()
+  const userDoc = await getDoc(doc(firestore, 'users', userId))
+  if (userDoc.exists()) {
+    viewedUser.value = {
+      id: userDoc.id,
+      ...userDoc.data()
+    }
+  } else {
+    viewedUser.value = null
   }
-])
+})
 </script>
 
 <style scoped>
@@ -61,14 +53,31 @@ const viewedPosts = ref([
   display: flex;
   justify-content: space-between;
   gap: 1rem;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: #f9f9f9;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 
 .left-panel,
 .right-panel {
-  width: 20%;
+  flex: 0 0 20%;
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .main-feed {
-  width: 60%;
+  flex: 1;
+  min-width: 0;
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 </style>

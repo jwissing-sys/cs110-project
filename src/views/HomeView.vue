@@ -7,8 +7,7 @@ import {
   serverTimestamp,
   updateDoc,
   doc,
-  getDoc,
-  setDoc,
+  getDoc
 } from 'firebase/firestore'
 
 import UserStats from '../components/UserStats.vue'
@@ -18,38 +17,50 @@ import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 
 const user = ref(null)
 const posts = ref([])
+const isLoading = ref(false)
 
-// Get current user info on load
+const loadUserFeed = async (uid) => {
+  isLoading.value = true
+  posts.value = []
+
+  try {
+    const userRef = doc(firestore, 'users', uid)
+    const userDoc = await getDoc(userRef)
+
+    if (userDoc.exists()) {
+      const userData = userDoc.data()
+      const feedIds = userData.feed || []
+
+      const limitedIds = feedIds.slice(-10).reverse() // most recent last
+
+      for (const id of limitedIds) {
+        const postSnap = await getDoc(doc(firestore, 'posts', id))
+        if (postSnap.exists()) {
+          posts.value.push({ id, ...postSnap.data() })
+        }
+      }
+    }
+  } catch (err) {
+    console.error('⚠️ Failed to load user feed:', err)
+  } finally {
+    isLoading.value = false
+  }
+}
+
 auth.onAuthStateChanged(async (firebaseUser) => {
   if (firebaseUser) {
     user.value = {
       email: firebaseUser.email,
       uid: firebaseUser.uid
     }
-
-    // Load user's feed posts
-    const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid))
-    const userData = userDoc.data()
-    const feedIds = userData?.feed || []
-
-    posts.value = []
-
-    for (const id of feedIds.slice(0, 10)) {
-      const postSnap = await getPostDoc(doc(firestore, 'posts', id))
-      if (postSnap.exists()) {
-        posts.value.push({
-          id,
-          ...postSnap.data()
-        })
-      }
-    }
-
+    await loadUserFeed(firebaseUser.uid)
   } else {
     user.value = null
+    posts.value = []
   }
 })
 
-// Submit a post to Firestore
+// Add a new post to Firestore
 const addPost = async (newContent) => {
   if (!user.value) {
     alert('You must be logged in to post.')
@@ -68,6 +79,7 @@ const addPost = async (newContent) => {
     const userRef = doc(firestore, 'users', user.value.uid)
     const userDoc = await getDoc(userRef)
     const userData = userDoc.data()
+
     const updatedPosts = [...(userData.posts || []), postRef.id]
 
     await updateDoc(userRef, { posts: updatedPosts })
@@ -80,31 +92,30 @@ const addPost = async (newContent) => {
       timestamp: new Date().toISOString()
     })
 
-    // Visual feedback
     alert('✅ Post submitted!')
   } catch (err) {
     console.error('🔥 Error in addPost:', err)
     alert('Post failed. Check console.')
   }
 }
-
 </script>
-
 
 
 <template>
   <div class="home-container">
-    <aside class="left-panel">
+    <aside class="left-panel" v-if="user">
       <UserStats :user="user" />
     </aside>
 
     <section class="main-feed">
       <PostInput v-if="user" @post="addPost" />
-      <PostFeed :posts="posts" />
+      <PostFeed v-if="user" :userId="user.uid" title="Your Feed" />
+      <PostFeed v-else title="Global Feed" />
     </section>
 
     <aside class="right-panel">
-      <SuggestedFollowers :currentUser="user" />
+      <SuggestedFollowers v-if="user" :currentUser="user" />
+      <SuggestedFollowers v-else :customList="[]" title="Suggested Users" />
     </aside>
   </div>
 </template>

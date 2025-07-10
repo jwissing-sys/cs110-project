@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { firestore } from '../firebaseResources'
 import {
   collection,
@@ -23,36 +23,39 @@ const props = defineProps({
 
 const suggestions = ref([])
 
-onMounted(async () => {
-  if (!props.currentUser?.uid) return
+watchEffect(async () => {
+  if (props.customList.length) {
+    suggestions.value = props.customList
+    return
+  }
 
   const allUsersSnap = await getDocs(collection(firestore, 'users'))
   const allUsers = []
-  const currentUserId = props.currentUser.uid
 
-  const currentUserDoc = await getDoc(doc(firestore, 'users', currentUserId))
-  const currentData = currentUserDoc.data()
-  const followingList = currentData?.following || []
-  
+  const currentUserId = props.currentUser?.uid
+  const followingList = new Set()
+
+  if (currentUserId) {
+    const currentUserDoc = await getDoc(doc(firestore, 'users', currentUserId))
+    const currentData = currentUserDoc.data()
+    for (const uid of currentData?.following || []) {
+      followingList.add(uid)
+    }
+  }
 
   allUsersSnap.forEach((docSnap) => {
-    const userData = docSnap.data()
     const uid = docSnap.id
+    const userData = docSnap.data()
+    const isSelf = uid === currentUserId
+    const isFollowing = followingList.has(uid)
 
-    if (
-      uid !== currentUserId &&
-      !followingList.includes(uid)
-    ) {
+    if (!isSelf && !isFollowing) {
       allUsers.push({ uid, email: userData.email })
     }
   })
 
-  // Shuffle and take 5
-  suggestions.value = allUsers
-    .sort(() => 0.5 - Math.random())
-    .slice(0, 5)
+  suggestions.value = allUsers.sort(() => 0.5 - Math.random()).slice(0, 5)
 })
-
 
 const follow = async (target) => {
   const currentUserId = props.currentUser.uid
@@ -85,25 +88,22 @@ const follow = async (target) => {
     followers: Array.from(targetFollowers)
   })
 
-  // Remove from suggestion list after follow
   suggestions.value = suggestions.value.filter(u => u.uid !== targetUserId)
 }
-
 </script>
 
 <template>
   <div class="suggested-followers">
-    <h3>Suggested Users</h3>
+    <h3>{{ title }}</h3>
     <ul v-if="suggestions.length">
       <li v-for="user in suggestions" :key="user.uid">
         {{ user.email }}
-        <button @click="follow(user)">Follow</button>
+        <button v-if="currentUser" @click="follow(user)">Follow</button>
       </li>
     </ul>
     <p v-else>No one new to follow</p>
   </div>
 </template>
-
 
 <style scoped>
 .suggested-followers {

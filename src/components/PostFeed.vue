@@ -1,16 +1,56 @@
-<template> 
+<template>
   <div class="post-feed">
-    <h3 class="feed-title">Recent Posts</h3>
-    <p v-if="!posts.length" class="no-posts">No posts yet!</p>
-    <PostItem v-for="post in posts" :key="post.id" :post="post" />
+    <h3 class="feed-title">{{ title }}</h3>
+    <p v-if="!internalPosts.length" class="no-posts">No posts yet!</p>
+    <PostItem v-for="post in internalPosts" :key="post.id" :post="post" />
   </div>
 </template>
 
 <script setup>
+import { ref, watchEffect } from 'vue'
+import { collection, doc, getDoc, getDocs, query, orderBy, limit } from 'firebase/firestore'
+import { firestore } from '../firebaseResources'
 import PostItem from './PostItem.vue'
 
-defineProps({
-  posts: Array
+const props = defineProps({
+  posts: Array,
+  userId: String,
+  title: {
+    type: String,
+    default: 'Recent Posts'
+  }
+})
+
+const internalPosts = ref([])
+
+watchEffect(async () => {
+  if (props.posts?.length) {
+    internalPosts.value = props.posts
+    return
+  }
+
+  if (props.userId) {
+    const userRef = doc(firestore, 'users', props.userId)
+    const userSnap = await getDoc(userRef)
+    if (userSnap.exists()) {
+      const feedIds = userSnap.data().feed || []
+      const postDocs = await Promise.all(
+        feedIds.slice(-10).reverse().map(async (id) => {
+          const p = await getDoc(doc(firestore, 'posts', id))
+          return p.exists() ? { id: p.id, ...p.data() } : null
+        })
+      )
+      internalPosts.value = postDocs.filter(Boolean)
+    }
+  } else {
+    const postsQuery = query(
+      collection(firestore, 'posts'),
+      orderBy('timestamp', 'desc'),
+      limit(10)
+    )
+    const snap = await getDocs(postsQuery)
+    internalPosts.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+  }
 })
 </script>
 
@@ -40,4 +80,3 @@ defineProps({
   margin-bottom: 1rem;
 }
 </style>
-
