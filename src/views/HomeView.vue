@@ -63,35 +63,25 @@ const addPost = async (newContent) => {
       timestamp: serverTimestamp()
     }
 
-    console.log('🟢 Creating new post in Firestore...')
     const postRef = await addDoc(collection(firestore, 'posts'), newPost)
 
     const userRef = doc(firestore, 'users', user.value.uid)
-    console.log('🟢 Checking if user doc exists:', userRef.path)
-    const userSnap = await getDoc(userRef)
+    const userDoc = await getDoc(userRef)
+    const userData = userDoc.data()
+    const updatedPosts = [...(userData.posts || []), postRef.id]
 
-    if (!userSnap.exists()) {
-      console.log('🟡 User doc does not exist. Creating...')
-      await setDoc(userRef, {
-        email: user.value.email,
-        posts: [postRef.id],
-        followers: [],
-        following: []
-      })
-    } else {
-      console.log('🟢 User doc found. Updating post list...')
-      const userData = userSnap.data()
-      const updatedPosts = [...(userData.posts || []), postRef.id]
-      await updateDoc(userRef, { posts: updatedPosts })
-    }
+    await updateDoc(userRef, { posts: updatedPosts })
 
-    alert('✅ Post submitted!')
+    // Immediately update UI
     posts.value.unshift({
       id: postRef.id,
-      ...newPost,
+      author: user.value.email,
+      content: newContent,
       timestamp: new Date().toISOString()
     })
 
+    // Visual feedback
+    alert('✅ Post submitted!')
   } catch (err) {
     console.error('🔥 Error in addPost:', err)
     alert('Post failed. Check console.')
