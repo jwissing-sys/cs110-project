@@ -1,19 +1,21 @@
 <template>
   <div class="post-input">
     <h3>Create a Post</h3>
-    <textarea v-model="content" placeholder="What's on your mind?"></textarea>
-    <button @click="submitPost" :disabled="!content.trim()">Post</button>
+    <form @submit.prevent="submitPost">
+      <textarea v-model.trim="content" placeholder="What's on your mind?" required></textarea>
+      <button type="submit" :disabled="!content">Post</button>
+    </form>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 const content = ref('')
-
 const emit = defineEmits(['post'])
 
 function submitPost() {
-  emit('post', content.value.trim())
+  if (!content.value) return
+  emit('post', content.value)
   content.value = ''
 }
 </script>
@@ -25,6 +27,10 @@ function submitPost() {
   padding: 1rem;
   border-radius: 6px;
   background: #fff;
+}
+form {
+  display: flex;
+  flex-direction: column;
 }
 textarea {
   width: 100%;
