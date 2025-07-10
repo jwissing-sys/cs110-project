@@ -8,7 +8,7 @@ import {
   updateDoc,
   doc,
   getDoc,
-  getDoc as getPostDoc
+  setDoc,
 } from 'firebase/firestore'
 
 import UserStats from '../components/UserStats.vue'
@@ -63,15 +63,15 @@ const addPost = async (newContent) => {
       timestamp: serverTimestamp()
     }
 
-    // 1. Add to posts collection
+    console.log('🟢 Creating new post in Firestore...')
     const postRef = await addDoc(collection(firestore, 'posts'), newPost)
 
-    // 2. Check if user document exists
     const userRef = doc(firestore, 'users', user.value.uid)
+    console.log('🟢 Checking if user doc exists:', userRef.path)
     const userSnap = await getDoc(userRef)
 
     if (!userSnap.exists()) {
-      // If not, create a new user document
+      console.log('🟡 User doc does not exist. Creating...')
       await setDoc(userRef, {
         email: user.value.email,
         posts: [postRef.id],
@@ -79,13 +79,13 @@ const addPost = async (newContent) => {
         following: []
       })
     } else {
-      // If exists, update their posts array
+      console.log('🟢 User doc found. Updating post list...')
       const userData = userSnap.data()
       const updatedPosts = [...(userData.posts || []), postRef.id]
       await updateDoc(userRef, { posts: updatedPosts })
     }
 
-    // 3. Add to local UI
+    console.log('✅ Post added successfully to UI!')
     posts.value.unshift({
       id: postRef.id,
       ...newPost,
@@ -93,10 +93,11 @@ const addPost = async (newContent) => {
     })
 
   } catch (err) {
-    console.error('❌ Failed to post:', err)
+    console.error('🔥 Error in addPost:', err)
     alert('Post failed. Check console.')
   }
 }
+
 </script>
 
 
