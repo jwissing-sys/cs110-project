@@ -16,7 +16,11 @@ const stats = ref({
   following: 0
 })
 
-watchEffect(async () => {
+watchEffect(() => {
+  fetchStats()
+})
+
+async function fetchStats() {  
   if (!props.user?.id && !props.user?.uid) return
 
   const userId = props.user.uid || props.user.id
@@ -29,7 +33,7 @@ watchEffect(async () => {
     stats.value.followers = data.followers?.length || 0
     stats.value.following = data.following?.length || 0
   }
-})
+}
 </script>
 
 <template>

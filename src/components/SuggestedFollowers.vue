@@ -22,47 +22,48 @@ const props = defineProps({
 })
 
 const suggestions = ref([])
+const following = ref(new Set())
 
 watchEffect(async () => {
+  if (!props.currentUser) {
+    suggestions.value = []
+    return
+  }
+
   if (props.customList.length) {
     suggestions.value = props.customList
     return
   }
 
+  const currentUserId = props.currentUser.uid
+  const userSnap = await getDoc(doc(firestore, 'users', currentUserId))
+  const currentData = userSnap.data()
+  following.value = new Set(currentData?.following || [])
+
   const allUsersSnap = await getDocs(collection(firestore, 'users'))
-  const allUsers = []
+  const users = []
 
-  const currentUserId = props.currentUser?.uid
-  const followingList = new Set()
-
-  if (currentUserId) {
-    const currentUserDoc = await getDoc(doc(firestore, 'users', currentUserId))
-    const currentData = currentUserDoc.data()
-    for (const uid of currentData?.following || []) {
-      followingList.add(uid)
-    }
-  }
-
-  allUsersSnap.forEach((docSnap) => {
-    const uid = docSnap.id
-    const userData = docSnap.data()
-    const isSelf = uid === currentUserId
-    const isFollowing = followingList.has(uid)
-
-    if (!isSelf && !isFollowing) {
-      allUsers.push({ uid, email: userData.email })
+  allUsersSnap.forEach((snap) => {
+    const uid = snap.id
+    const userData = snap.data()
+    if (uid !== currentUserId && !following.value.has(uid)) {
+      users.push({ uid, email: userData.email })
     }
   })
 
-  suggestions.value = allUsers.sort(() => 0.5 - Math.random()).slice(0, 5)
+  suggestions.value = users.sort(() => 0.5 - Math.random()).slice(0, 5)
 })
 
 const follow = async (target) => {
+  if (!props.currentUser) return
+
   const currentUserId = props.currentUser.uid
   const targetUserId = target.uid
 
-  const currentRef = doc(firestore, 'users', currentUserId)
-  const targetRef = doc(firestore, 'users', targetUserId)
+  const [currentRef, targetRef] = [
+    doc(firestore, 'users', currentUserId),
+    doc(firestore, 'users', targetUserId)
+  ]
 
   const [currentSnap, targetSnap] = await Promise.all([
     getDoc(currentRef),
@@ -72,22 +73,24 @@ const follow = async (target) => {
   const currentData = currentSnap.data()
   const targetData = targetSnap.data()
 
-  const currentFollowing = new Set(currentData.following || [])
-  const targetFollowers = new Set(targetData.followers || [])
+  const updatedFollowing = new Set(currentData.following || [])
+  const updatedFollowers = new Set(targetData.followers || [])
   const targetPosts = targetData.posts || []
 
-  currentFollowing.add(targetUserId)
-  targetFollowers.add(currentUserId)
+  updatedFollowing.add(targetUserId)
+  updatedFollowers.add(currentUserId)
 
-  await updateDoc(currentRef, {
-    following: Array.from(currentFollowing),
-    feed: [...(currentData.feed || []), ...targetPosts]
-  })
+  await Promise.all([
+    updateDoc(currentRef, {
+      following: Array.from(updatedFollowing),
+      feed: [...(currentData.feed || []), ...targetPosts]
+    }),
+    updateDoc(targetRef, {
+      followers: Array.from(updatedFollowers)
+    })
+  ])
 
-  await updateDoc(targetRef, {
-    followers: Array.from(targetFollowers)
-  })
-
+  // Remove followed user from suggestions list
   suggestions.value = suggestions.value.filter(u => u.uid !== targetUserId)
 }
 </script>
@@ -98,7 +101,7 @@ const follow = async (target) => {
     <ul v-if="suggestions.length">
       <li v-for="user in suggestions" :key="user.uid">
         {{ user.email }}
-        <button v-if="currentUser" @click="follow(user)">Follow</button>
+        <button @click="follow(user)">Follow</button>
       </li>
     </ul>
     <p v-else>No one new to follow</p>

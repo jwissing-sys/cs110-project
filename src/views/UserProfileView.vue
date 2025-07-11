@@ -11,7 +11,6 @@
 
     <aside class="right-panel" v-if="viewedUser">
       <SuggestedFollowers
-        :currentUser="null"
         :customList="[viewedUser]"
         :title="`Follow ${viewedUser.email}`"
       />
