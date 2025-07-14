@@ -18,11 +18,11 @@ const router = createRouter({
       path: '/users/:id',
       name: 'profile',
       component: () => import('../views/UserProfileView.vue'),
-      props: true  // ✅ allows route param `id` to be passed as a prop if you ever need it
+      props: true  // 
     },
     {
       path: '/:catchAll(.*)',
-      redirect: '/'  // ✅ optional: redirect bad routes to home
+      redirect: '/'  //
     }
   ]
 })

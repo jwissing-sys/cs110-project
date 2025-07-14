@@ -49,7 +49,9 @@ watchEffect(async () => {
 
 <style scoped>
 .profile-view {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 1.5rem;
   justify-content: space-between;
   gap: 1rem;
   padding: 2rem;

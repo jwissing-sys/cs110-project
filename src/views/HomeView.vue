@@ -122,7 +122,9 @@ const addPost = async (newContent) => {
 
 <style scoped>
 .home-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 1.5rem;
   justify-content: space-between;
   gap: 1.5rem;
   background-color: #f9f9f9;

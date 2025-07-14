@@ -11,7 +11,14 @@
 <script setup>
 import { ref } from 'vue'
 import { auth, firestore } from '../firebaseResources'
-import { addDoc, collection, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  updateDoc,
+  Timestamp
+} from 'firebase/firestore'
 
 const content = ref('')
 
@@ -20,29 +27,30 @@ async function submitPost() {
   if (!user || !content.value.trim()) return
 
   try {
-    // 1. Create new post
+    // 1. Add post to Firestore
     const newPostRef = await addDoc(collection(firestore, 'posts'), {
       content: content.value,
       author: user.email,
       timestamp: Timestamp.now()
     })
-
     const postId = newPostRef.id
 
-    // 2. Get current user's Firestore doc
-    const userDocRef = doc(firestore, 'users', user.uid)
-    const userSnap = await getDoc(userDocRef)
+    // 2. Get user's Firestore doc
+    const userRef = doc(firestore, 'users', user.uid)
+    const userSnap = await getDoc(userRef)
     if (!userSnap.exists()) return
 
     const userData = userSnap.data()
     const updatedPosts = [...(userData.posts || []), postId]
+    const updatedFeed = [...(userData.feed || []), postId] // ✅ add to own feed
 
-    // 3. Update user's posts array
-    await updateDoc(userDocRef, {
-      posts: updatedPosts
+    // 3. Update current user's doc
+    await updateDoc(userRef, {
+      posts: updatedPosts,
+      feed: updatedFeed
     })
 
-    // 4. Push post to all followers' feeds
+    // 4. Append post to followers' feeds
     const followers = userData.followers || []
     await Promise.all(
       followers.map(async (followerId) => {
@@ -51,12 +59,12 @@ async function submitPost() {
         if (!followerSnap.exists()) return
 
         const followerData = followerSnap.data()
-        const updatedFeed = [...(followerData.feed || []), postId]
-        await updateDoc(followerRef, { feed: updatedFeed })
+        const followerFeed = [...(followerData.feed || []), postId]
+        await updateDoc(followerRef, { feed: followerFeed })
       })
     )
 
-    content.value = '' // clear input
+    content.value = '' // ✅ Clear after post
   } catch (err) {
     console.error('Failed to post:', err)
   }
