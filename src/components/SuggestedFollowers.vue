@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watchEffect } from 'vue'
+import { RouterLink } from 'vue-router'
 import { firestore } from '../firebaseResources'
 import {
   collection,
@@ -23,6 +24,7 @@ const props = defineProps({
 
 const suggestions = ref([])
 const following = ref(new Set())
+const loadingIds = ref(new Set())
 
 watchEffect(async () => {
   if (!props.currentUser) {
@@ -57,44 +59,51 @@ watchEffect(async () => {
 const follow = async (target) => {
   if (!props.currentUser) return
 
-  const currentUserId = props.currentUser.uid
   const targetUserId = target.uid
+  loadingIds.value.add(targetUserId) 
 
-  const currentRef = doc(firestore, 'users', currentUserId)
-  const targetRef = doc(firestore, 'users', targetUserId)
+  try {
+    const currentUserId = props.currentUser.uid
+    const currentRef = doc(firestore, 'users', currentUserId)
+    const targetRef = doc(firestore, 'users', targetUserId)
 
-  const [currentSnap, targetSnap] = await Promise.all([
-    getDoc(currentRef),
-    getDoc(targetRef)
-  ])
+    const [currentSnap, targetSnap] = await Promise.all([
+      getDoc(currentRef),
+      getDoc(targetRef)
+    ])
 
-  if (!currentSnap.exists() || !targetSnap.exists()) return
+    if (!currentSnap.exists() || !targetSnap.exists()) return
 
-  const currentData = currentSnap.data()
-  const targetData = targetSnap.data()
+    const currentData = currentSnap.data()
+    const targetData = targetSnap.data()
 
-  const updatedFollowing = new Set(currentData.following || [])
-  const updatedFeed = new Set(currentData.feed || [])
-  const updatedFollowers = new Set(targetData.followers || [])
+    const updatedFollowing = new Set(currentData.following || [])
+    const updatedFeed = new Set(currentData.feed || [])
+    const updatedFollowers = new Set(targetData.followers || [])
 
-  updatedFollowing.add(targetUserId)
-  updatedFollowers.add(currentUserId)
+    updatedFollowing.add(targetUserId)
+    updatedFollowers.add(currentUserId)
 
-  for (const postId of targetData.posts || []) {
-    updatedFeed.add(postId)
+    for (const postId of targetData.posts || []) {
+      updatedFeed.add(postId)
+    }
+
+    await Promise.all([
+      updateDoc(currentRef, {
+        following: Array.from(updatedFollowing),
+        feed: Array.from(updatedFeed)
+      }),
+      updateDoc(targetRef, {
+        followers: Array.from(updatedFollowers)
+      })
+    ])
+
+    suggestions.value = suggestions.value.filter((u) => u.uid !== targetUserId)
+  } catch (err) {
+    console.error('Error following user:', err)
+  } finally {
+    loadingIds.value.delete(targetUserId) 
   }
-
-  await updateDoc(currentRef, {
-    following: Array.from(updatedFollowing),
-    feed: Array.from(updatedFeed)
-  })
-
-  await updateDoc(targetRef, {
-    followers: Array.from(updatedFollowers)
-  })
-
-  // Remove the followed user from suggestions UI
-  suggestions.value = suggestions.value.filter((u) => u.uid !== targetUserId)
 }
 
 </script>
@@ -104,8 +113,10 @@ const follow = async (target) => {
     <h3>{{ title }}</h3>
     <ul v-if="suggestions.length">
       <li v-for="user in suggestions" :key="user.uid">
-        {{ user.email }}
-        <button @click="follow(user)">Follow</button>
+        <RouterLink :to="`/users/${user.uid}`">{{ user.email }}</RouterLink>
+        <button @click="follow(user)" :disabled="loadingIds.has(user.uid)">
+          {{ loadingIds.has(user.uid) ? 'Following...' : 'Follow' }}
+        </button>
       </li>
     </ul>
     <p v-else>No one new to follow</p>

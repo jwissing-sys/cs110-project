@@ -17,7 +17,7 @@
     </div>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="isLoggedIn">✅ Logged in as {{ auth.currentUser?.email }}</p>
+    <p v-if="isLoggedIn"> Logged in as {{ auth.currentUser?.email }}</p>
   </div>
 </template>
 
