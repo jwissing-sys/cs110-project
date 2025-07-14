@@ -60,39 +60,43 @@ const follow = async (target) => {
   const currentUserId = props.currentUser.uid
   const targetUserId = target.uid
 
-  const [currentRef, targetRef] = [
-    doc(firestore, 'users', currentUserId),
-    doc(firestore, 'users', targetUserId)
-  ]
+  const currentRef = doc(firestore, 'users', currentUserId)
+  const targetRef = doc(firestore, 'users', targetUserId)
 
   const [currentSnap, targetSnap] = await Promise.all([
     getDoc(currentRef),
     getDoc(targetRef)
   ])
 
+  if (!currentSnap.exists() || !targetSnap.exists()) return
+
   const currentData = currentSnap.data()
   const targetData = targetSnap.data()
 
   const updatedFollowing = new Set(currentData.following || [])
+  const updatedFeed = new Set(currentData.feed || [])
   const updatedFollowers = new Set(targetData.followers || [])
-  const targetPosts = targetData.posts || []
 
   updatedFollowing.add(targetUserId)
   updatedFollowers.add(currentUserId)
 
-  await Promise.all([
-    updateDoc(currentRef, {
-      following: Array.from(updatedFollowing),
-      feed: [...(currentData.feed || []), ...targetPosts]
-    }),
-    updateDoc(targetRef, {
-      followers: Array.from(updatedFollowers)
-    })
-  ])
+  for (const postId of targetData.posts || []) {
+    updatedFeed.add(postId)
+  }
 
-  // Remove followed user from suggestions list
-  suggestions.value = suggestions.value.filter(u => u.uid !== targetUserId)
+  await updateDoc(currentRef, {
+    following: Array.from(updatedFollowing),
+    feed: Array.from(updatedFeed)
+  })
+
+  await updateDoc(targetRef, {
+    followers: Array.from(updatedFollowers)
+  })
+
+  // Remove the followed user from suggestions UI
+  suggestions.value = suggestions.value.filter((u) => u.uid !== targetUserId)
 }
+
 </script>
 
 <template>

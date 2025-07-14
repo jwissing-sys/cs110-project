@@ -1,13 +1,13 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { auth, firestore } from '../firebaseResources'
 import {
   addDoc,
   collection,
-  serverTimestamp,
-  updateDoc,
   doc,
-  getDoc
+  getDoc,
+  updateDoc,
+  serverTimestamp
 } from 'firebase/firestore'
 
 import UserStats from '../components/UserStats.vue'
@@ -19,83 +19,87 @@ const user = ref(null)
 const posts = ref([])
 const isLoading = ref(false)
 
+onMounted(() => {
+  auth.onAuthStateChanged(async (firebaseUser) => {
+    if (firebaseUser) {
+      user.value = {
+        email: firebaseUser.email,
+        uid: firebaseUser.uid
+      }
+      await loadUserFeed(firebaseUser.uid)
+    } else {
+      user.value = null
+      posts.value = []
+    }
+  })
+})
+
 const loadUserFeed = async (uid) => {
   isLoading.value = true
   posts.value = []
 
   try {
     const userRef = doc(firestore, 'users', uid)
-    const userDoc = await getDoc(userRef)
+    const userSnap = await getDoc(userRef)
+    if (!userSnap.exists()) return
 
-    if (userDoc.exists()) {
-      const userData = userDoc.data()
-      const feedIds = userData.feed || []
+    const feedIds = userSnap.data().feed || []
+    const recentIds = feedIds.slice(-10).reverse()
 
-      const limitedIds = feedIds.slice(-10).reverse() // most recent last
+    const fetched = await Promise.all(
+      recentIds.map(async (id) => {
+        const snap = await getDoc(doc(firestore, 'posts', id))
+        return snap.exists() ? { id, ...snap.data() } : null
+      })
+    )
 
-      for (const id of limitedIds) {
-        const postSnap = await getDoc(doc(firestore, 'posts', id))
-        if (postSnap.exists()) {
-          posts.value.push({ id, ...postSnap.data() })
-        }
-      }
-    }
+    posts.value = fetched.filter(Boolean)
   } catch (err) {
-    console.error('⚠️ Failed to load user feed:', err)
+    console.error('Failed to load feed:', err)
   } finally {
     isLoading.value = false
   }
 }
 
-auth.onAuthStateChanged(async (firebaseUser) => {
-  if (firebaseUser) {
-    user.value = {
-      email: firebaseUser.email,
-      uid: firebaseUser.uid
-    }
-    await loadUserFeed(firebaseUser.uid)
-  } else {
-    user.value = null
-    posts.value = []
-  }
-})
-
-// Add a new post to Firestore
-const addPost = async (newContent) => {
-  if (!user.value) {
-    alert('You must be logged in to post.')
+const addPost = async (content) => {
+  if (!user.value || !content.trim()) {
+    alert('You must be logged in and write something.')
     return
   }
 
   try {
-    const newPost = {
+    const postRef = await addDoc(collection(firestore, 'posts'), {
+      content,
       author: user.value.email,
-      content: newContent,
       timestamp: serverTimestamp()
-    }
-
-    const postRef = await addDoc(collection(firestore, 'posts'), newPost)
+    })
 
     const userRef = doc(firestore, 'users', user.value.uid)
-    const userDoc = await getDoc(userRef)
-    const userData = userDoc.data()
+    const userSnap = await getDoc(userRef)
+    if (!userSnap.exists()) return
 
+    const userData = userSnap.data()
     const updatedPosts = [...(userData.posts || []), postRef.id]
+    const updatedFeed = [...(userData.feed || []), postRef.id]
 
-    await updateDoc(userRef, { posts: updatedPosts })
+    // Update posts and feed
+    await updateDoc(userRef, {
+      posts: updatedPosts,
+      feed: updatedFeed
+    })
 
-    // Immediately update UI
+    // Add post to UI
     posts.value.unshift({
       id: postRef.id,
+      content,
       author: user.value.email,
-      content: newContent,
       timestamp: new Date().toISOString()
     })
 
-    alert('✅ Post submitted!')
+    alert('Post submitted!')
   } catch (err) {
-    console.error('🔥 Error in addPost:', err)
-    alert('Post failed. Check console.')
+    console.error('🔥 Error adding post:', err)
+    alert('Failed to post. See console.')
   }
 }
 </script>
@@ -125,30 +129,17 @@ const addPost = async (newContent) => {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
   gap: 1.5rem;
-  justify-content: space-between;
-  gap: 1.5rem;
   background-color: #f9f9f9;
   padding: 2rem;
   box-sizing: border-box;
-
   max-width: 1200px;
-  margin: 0 auto; /* center on large screens */
+  margin: 0 auto;
   min-height: 100vh;
 }
 
 .left-panel,
-.right-panel {
-  flex: 0 0 20%;
-  background-color: #ffffff;
-  border: 1px solid #ddd;
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
+.right-panel,
 .main-feed {
-  flex: 1;
-  min-width: 0; /* prevents overflow */
   background-color: #ffffff;
   border: 1px solid #ddd;
   padding: 1.5rem;
@@ -156,8 +147,10 @@ const addPost = async (newContent) => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+/* Responsive stacking layout */
 @media (max-width: 900px) {
   .home-container {
+    display: flex;
     flex-direction: column;
     padding: 1rem;
   }

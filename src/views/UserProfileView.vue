@@ -4,22 +4,22 @@
       <UserStats :user="viewedUser" />
     </aside>
 
-    <section class="main-feed">
-      <h2>Posts by {{ viewedUser?.email }}</h2>
-      <PostFeed :userId="viewedUser?.id" />
+    <section class="main-feed" v-if="viewedUser">
+      <h2>Posts by {{ viewedUser.email }}</h2>
+      <PostFeed :userId="viewedUser.id" />
     </section>
 
     <aside class="right-panel" v-if="viewedUser">
       <SuggestedFollowers
-        :customList="[viewedUser]"
-        :title="`Follow ${viewedUser.email}`"
+        :customList="[]"
+        :title="`Want to follow ${viewedUser.email}?`"
       />
     </aside>
   </div>
 </template>
 
 <script setup>
-import { ref, watchEffect } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { doc, getDoc } from 'firebase/firestore'
 import { firestore } from '../firebaseResources'
@@ -31,17 +31,19 @@ import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 const route = useRoute()
 const viewedUser = ref(null)
 
-watchEffect(async () => {
+onMounted(async () => {
   const userId = route.params.id
   if (!userId) return
 
-  const userDoc = await getDoc(doc(firestore, 'users', userId))
-  if (userDoc.exists()) {
-    viewedUser.value = {
-      id: userDoc.id,
-      ...userDoc.data()
+  try {
+    const userDoc = await getDoc(doc(firestore, 'users', userId))
+    if (userDoc.exists()) {
+      viewedUser.value = { id: userDoc.id, ...userDoc.data() }
+    } else {
+      viewedUser.value = null
     }
-  } else {
+  } catch (err) {
+    console.error('Failed to load profile:', err)
     viewedUser.value = null
   }
 })
@@ -52,8 +54,6 @@ watchEffect(async () => {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
   gap: 1.5rem;
-  justify-content: space-between;
-  gap: 1rem;
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
@@ -63,18 +63,8 @@ watchEffect(async () => {
 }
 
 .left-panel,
-.right-panel {
-  flex: 0 0 20%;
-  background-color: #ffffff;
-  border: 1px solid #ddd;
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
+.right-panel,
 .main-feed {
-  flex: 1;
-  min-width: 0;
   background-color: #ffffff;
   border: 1px solid #ddd;
   padding: 1.5rem;
