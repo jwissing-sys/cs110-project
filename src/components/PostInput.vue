@@ -9,8 +9,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { inject, ref } from 'vue'
+import { ref, inject } from 'vue'
 import { firestore } from '../firebaseResources'
 import {
   addDoc,
