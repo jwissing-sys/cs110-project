@@ -1,24 +1,30 @@
 <template>
   <div class="post-item">
     <div class="meta">
-      <strong>{{ post.author }}</strong>
+      <strong>{{ post.author || 'Unknown' }}</strong>
       <span class="timestamp">{{ formattedDate }}</span>
     </div>
-    <p>{{ post.content }}</p>
+    <p>{{ post.content || '[No content]' }}</p>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 
-defineProps({
+const props = defineProps({
   post: Object
 })
 
-const formattedDate = computed(() =>
-  new Date(post.timestamp).toLocaleString()
-)
+const formattedDate = computed(() => {
+  const ts = props.post?.timestamp
+  if (!ts) return ''
+
+  // Support both Firebase Timestamp and ISO string
+  const date = ts.toDate ? ts.toDate() : new Date(ts)
+  return date.toLocaleString()
+})
 </script>
+
 
 <style scoped>
 .post-item {
