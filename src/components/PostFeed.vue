@@ -2,13 +2,25 @@
   <div class="post-feed">
     <h3 class="feed-title">{{ title }}</h3>
     <p v-if="!internalPosts.length" class="no-posts">No posts yet!</p>
-    <PostItem v-for="post in internalPosts" :key="post.id" :post="post" />
+    <PostItem
+      v-for="post in internalPosts"
+      :key="post.id"
+      :post="post"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, watchEffect } from 'vue'
-import { collection, doc, getDoc, getDocs, query, orderBy, limit } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  orderBy,
+  limit
+} from 'firebase/firestore'
 import { firestore } from '../firebaseResources'
 import PostItem from './PostItem.vue'
 
@@ -32,21 +44,24 @@ watchEffect(async () => {
   if (props.userId) {
     const userRef = doc(firestore, 'users', props.userId)
     const userSnap = await getDoc(userRef)
+
     if (userSnap.exists()) {
-      const feedIds = userSnap.data().feed || []
+      const data = userSnap.data()
+      const feedIds = data.feed || []
+      const postIds = data.posts || []
+
+      const combinedIds = [...new Set([...feedIds, ...postIds])]
 
       const postDocs = await Promise.all(
-        feedIds.map(async (id) => {
-          const postRef = doc(firestore, 'posts', id)
-          const postSnap = await getDoc(postRef)
-          return postSnap.exists() ? { id: postSnap.id, ...postSnap.data() } : null
+        combinedIds.slice(-10).reverse().map(async (id) => {
+          const snap = await getDoc(doc(firestore, 'posts', id))
+          return snap.exists() ? { id: snap.id, ...snap.data() } : null
         })
       )
 
       internalPosts.value = postDocs
         .filter(Boolean)
         .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
-        .slice(0, 10)
     }
   } else {
     const postsQuery = query(
@@ -58,7 +73,6 @@ watchEffect(async () => {
     internalPosts.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
   }
 })
-
 </script>
 
 <style scoped>

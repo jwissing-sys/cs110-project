@@ -33,7 +33,7 @@ watchEffect(async () => {
   }
 
   if (props.customList.length) {
-    suggestions.value = props.customList
+    suggestions.value = props.customList.map((u) => ({ ...u, followed: true }))
     return
   }
 
@@ -48,8 +48,12 @@ watchEffect(async () => {
   allUsersSnap.forEach((snap) => {
     const uid = snap.id
     const userData = snap.data()
-    if (uid !== currentUserId && !following.value.has(uid)) {
-      users.push({ uid, email: userData.email })
+    if (uid !== currentUserId) {
+      users.push({
+        uid,
+        email: userData.email,
+        followed: following.value.has(uid)
+      })
     }
   })
 
@@ -88,7 +92,6 @@ const follow = async (target) => {
       updatedFeed.add(postId)
     }
 
-    // Perform the updates
     await Promise.all([
       updateDoc(currentRef, {
         following: Array.from(updatedFollowing),
@@ -99,17 +102,17 @@ const follow = async (target) => {
       })
     ])
 
-    // Cleanly remove the followed user from the list
-    suggestions.value = suggestions.value.filter(u => u.uid !== targetUserId)
+    suggestions.value = suggestions.value.map((u) =>
+      u.uid === targetUserId ? { ...u, followed: true } : u
+    )
   } catch (err) {
     console.error('Error following user:', err)
   } finally {
     loadingIds.value.delete(targetUserId)
   }
 }
-
-
 </script>
+
 
 <template>
   <div class="suggested-followers">
@@ -118,16 +121,19 @@ const follow = async (target) => {
       <li v-for="user in suggestions" :key="user.uid">
         <RouterLink :to="`/users/${user.uid}`">{{ user.email }}</RouterLink>
         <button
+          v-if="!user.followed"
           @click="follow(user)"
           :disabled="loadingIds.has(user.uid)"
         >
           {{ loadingIds.has(user.uid) ? 'Following...' : 'Follow' }}
         </button>
+        <span v-else>Followed</span>
       </li>
     </ul>
     <p v-else>No one new to follow</p>
   </div>
 </template>
+
 
 <style scoped>
 .suggested-followers {

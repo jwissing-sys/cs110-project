@@ -22,6 +22,7 @@ import {
 
 const currentUser = inject('currentUser')
 const content = ref('')
+const emit = defineEmits(['post-created'])
 
 async function submitPost() {
   const user = currentUser.value
@@ -65,6 +66,8 @@ async function submitPost() {
   } catch (err) {
     console.error('Failed to post:', err)
   }
+
+  emit('post-created')  // tell parent to refresh
 }
 
 </script>

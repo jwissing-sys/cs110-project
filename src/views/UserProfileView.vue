@@ -6,7 +6,7 @@
 
     <section class="main-feed" v-if="viewedUser">
       <h2>Posts by {{ viewedUser.email }}</h2>
-      <PostFeed :userId="viewedUser.id" />
+      <PostFeed :userId="viewedUser?.id || viewedUser?.uid" />
     </section>
 
     <aside class="right-panel" v-if="viewedUser">

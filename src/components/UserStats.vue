@@ -11,6 +11,8 @@ const stats = ref({
   following: 0
 })
 
+const email = ref('')
+
 watchEffect(() => {
   fetchStats()
 })
@@ -26,15 +28,15 @@ async function fetchStats() {
     stats.value.posts = data.posts?.length || 0
     stats.value.followers = data.followers?.length || 0
     stats.value.following = data.following?.length || 0
+    email.value = data.email || currentUser.value.email || 'Unknown'
   }
 }
-
 </script>
 
 <template>
   <div class="user-stats">
     <h3>User Stats</h3>
-    <p>Email: {{ currentUser?.value?.email }}</p>
+    <p>Email: {{ email }}</p>
     <p>Posts: {{ stats.posts }}</p>
     <p>Followers: {{ stats.followers }}</p>
     <p>Following: {{ stats.following }}</p>

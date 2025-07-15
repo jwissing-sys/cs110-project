@@ -1,14 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { auth, firestore } from '../firebaseResources'
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  updateDoc,
-  serverTimestamp
-} from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 
 import UserStats from '../components/UserStats.vue'
 import PostInput from '../components/PostInput.vue'
@@ -18,6 +11,7 @@ import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 const user = ref(null)
 const posts = ref([])
 const isLoading = ref(false)
+const feedKey = ref(0)
 
 onMounted(() => {
   auth.onAuthStateChanged(async (firebaseUser) => {
@@ -44,10 +38,11 @@ const loadUserFeed = async (uid) => {
     if (!userSnap.exists()) return
 
     const feedIds = userSnap.data().feed || []
-    const recentIds = feedIds.slice(-10).reverse()
+    const postIds = userSnap.data().posts || []
+    const combined = [...new Set([...feedIds, ...postIds])]
 
     const fetched = await Promise.all(
-      recentIds.map(async (id) => {
+      combined.slice(-10).reverse().map(async (id) => {
         const snap = await getDoc(doc(firestore, 'posts', id))
         return snap.exists() ? { id, ...snap.data() } : null
       })
@@ -61,45 +56,10 @@ const loadUserFeed = async (uid) => {
   }
 }
 
-const addPost = async (content) => {
-  if (!user.value || !content.trim()) {
-    alert('You must be logged in and write something.')
-    return
-  }
-
-  try {
-    const postRef = await addDoc(collection(firestore, 'posts'), {
-      content,
-      author: user.value.email,
-      timestamp: serverTimestamp()
-    })
-
-    const userRef = doc(firestore, 'users', user.value.uid)
-    const userSnap = await getDoc(userRef)
-    if (!userSnap.exists()) return
-
-    const userData = userSnap.data()
-    const updatedPosts = [...(userData.posts || []), postRef.id]
-    const updatedFeed = [...(userData.feed || []), postRef.id]
-
-    // Update posts and feed
-    await updateDoc(userRef, {
-      posts: updatedPosts,
-      feed: updatedFeed
-    })
-
-    // Add post to UI
-    posts.value.unshift({
-      id: postRef.id,
-      content,
-      author: user.value.email,
-      timestamp: new Date().toISOString()
-    })
-
-    alert('Post submitted!')
-  } catch (err) {
-    console.error('🔥 Error adding post:', err)
-    alert('Failed to post. See console.')
+function refreshFeed() {
+  feedKey.value++
+  if (user.value) {
+    loadUserFeed(user.value.uid)
   }
 }
 </script>
@@ -112,8 +72,8 @@ const addPost = async (content) => {
     </aside>
 
     <section class="main-feed">
-      <PostInput v-if="user" @post="addPost" />
-      <PostFeed v-if="user" :userId="user.uid" title="Your Feed" />
+      <PostInput v-if="user" @post-created="refreshFeed" />
+      <PostFeed v-if="user" :userId="user.uid" :key="feedKey" title="Your Feed" />
       <PostFeed v-else title="Global Feed" />
     </section>
 
@@ -123,6 +83,7 @@ const addPost = async (content) => {
     </aside>
   </div>
 </template>
+
 
 <style scoped>
 .home-container {
