@@ -34,13 +34,19 @@ watchEffect(async () => {
     const userSnap = await getDoc(userRef)
     if (userSnap.exists()) {
       const feedIds = userSnap.data().feed || []
+
       const postDocs = await Promise.all(
-        feedIds.slice(-10).reverse().map(async (id) => {
-          const p = await getDoc(doc(firestore, 'posts', id))
-          return p.exists() ? { id: p.id, ...p.data() } : null
+        feedIds.map(async (id) => {
+          const postRef = doc(firestore, 'posts', id)
+          const postSnap = await getDoc(postRef)
+          return postSnap.exists() ? { id: postSnap.id, ...postSnap.data() } : null
         })
       )
-      internalPosts.value = postDocs.filter(Boolean)
+
+      internalPosts.value = postDocs
+        .filter(Boolean)
+        .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
+        .slice(0, 10)
     }
   } else {
     const postsQuery = query(
@@ -52,6 +58,7 @@ watchEffect(async () => {
     internalPosts.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
   }
 })
+
 </script>
 
 <style scoped>

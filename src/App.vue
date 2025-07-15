@@ -1,6 +1,18 @@
 <script setup>
 import { RouterView } from 'vue-router'
+import { provide, ref, onMounted } from 'vue'
+import { auth } from './firebaseResources'
+import { onAuthStateChanged } from 'firebase/auth'
 import NavigationBar from './components/NavigationBar.vue'
+
+const currentUser = ref(null)
+provide('currentUser', currentUser)
+
+onMounted(() => {
+  onAuthStateChanged(auth, (user) => {
+    currentUser.value = user
+  })
+})
 </script>
 
 <template>

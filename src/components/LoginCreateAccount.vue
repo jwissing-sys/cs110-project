@@ -24,6 +24,8 @@
 <script setup>
 import { ref } from 'vue'
 import { auth } from '../firebaseResources'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
+import { firestore } from '../firebaseResources'
 import { onAuthStateChanged } from 'firebase/auth'
 import {
   createUserWithEmailAndPassword,
@@ -46,7 +48,22 @@ const toggleMode = () => {
 
 const login = async () => {
   try {
-    await signInWithEmailAndPassword(auth, email.value, password.value)
+    const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value)
+    const user = userCredential.user
+
+    const userRef = doc(firestore, 'users', user.uid)
+    const docSnap = await getDoc(userRef)
+
+    if (!docSnap.exists()) {
+      await setDoc(userRef, {
+        email: user.email,
+        posts: [],
+        feed: [],
+        followers: [],
+        following: []
+      })
+    }
+
     isLoggedIn.value = true
     errorMessage.value = ''
   } catch (error) {
@@ -54,9 +71,26 @@ const login = async () => {
   }
 }
 
+
 const createAccount = async () => {
   try {
-    await createUserWithEmailAndPassword(auth, email.value, password.value)
+    const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
+    const user = userCredential.user
+
+    // After signup, create Firestore user doc
+    const userRef = doc(firestore, 'users', user.uid)
+    const docSnap = await getDoc(userRef)
+
+    if (!docSnap.exists()) {
+      await setDoc(userRef, {
+        email: user.email,
+        posts: [],
+        feed: [],
+        followers: [],
+        following: []
+      })
+    }
+
     isLoggedIn.value = true
     errorMessage.value = ''
   } catch (error) {

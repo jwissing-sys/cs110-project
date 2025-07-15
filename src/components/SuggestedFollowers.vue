@@ -60,7 +60,7 @@ const follow = async (target) => {
   if (!props.currentUser) return
 
   const targetUserId = target.uid
-  loadingIds.value.add(targetUserId) 
+  loadingIds.value.add(targetUserId)
 
   try {
     const currentUserId = props.currentUser.uid
@@ -88,6 +88,7 @@ const follow = async (target) => {
       updatedFeed.add(postId)
     }
 
+    // Perform the updates
     await Promise.all([
       updateDoc(currentRef, {
         following: Array.from(updatedFollowing),
@@ -98,13 +99,15 @@ const follow = async (target) => {
       })
     ])
 
-    suggestions.value = suggestions.value.filter((u) => u.uid !== targetUserId)
+    // Cleanly remove the followed user from the list
+    suggestions.value = suggestions.value.filter(u => u.uid !== targetUserId)
   } catch (err) {
     console.error('Error following user:', err)
   } finally {
-    loadingIds.value.delete(targetUserId) 
+    loadingIds.value.delete(targetUserId)
   }
 }
+
 
 </script>
 
@@ -114,7 +117,10 @@ const follow = async (target) => {
     <ul v-if="suggestions.length">
       <li v-for="user in suggestions" :key="user.uid">
         <RouterLink :to="`/users/${user.uid}`">{{ user.email }}</RouterLink>
-        <button @click="follow(user)" :disabled="loadingIds.has(user.uid)">
+        <button
+          @click="follow(user)"
+          :disabled="loadingIds.has(user.uid)"
+        >
           {{ loadingIds.has(user.uid) ? 'Following...' : 'Follow' }}
         </button>
       </li>

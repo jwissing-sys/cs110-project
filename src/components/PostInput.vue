@@ -1,16 +1,17 @@
 <template>
-  <div class="post-input">
+  <div v-if="currentUser">
     <h3>Create a Post</h3>
-    <form @submit.prevent="submitPost">
+      <form @submit.prevent="submitPost">
       <textarea v-model.trim="content" placeholder="What's on your mind?" required></textarea>
-      <button type="submit" :disabled="!content">Post</button>
-    </form>
+    <button type="submit" :disabled="!content">Post</button>
+      </form>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { auth, firestore } from '../firebaseResources'
+import { inject, ref } from 'vue'
+import { firestore } from '../firebaseResources'
 import {
   addDoc,
   collection,
@@ -20,14 +21,14 @@ import {
   Timestamp
 } from 'firebase/firestore'
 
+const currentUser = inject('currentUser')
 const content = ref('')
 
 async function submitPost() {
-  const user = auth.currentUser
+  const user = currentUser.value
   if (!user || !content.value.trim()) return
 
   try {
-    // 1. Add post to Firestore
     const newPostRef = await addDoc(collection(firestore, 'posts'), {
       content: content.value,
       author: user.email,
@@ -35,22 +36,19 @@ async function submitPost() {
     })
     const postId = newPostRef.id
 
-    // 2. Get user's Firestore doc
     const userRef = doc(firestore, 'users', user.uid)
     const userSnap = await getDoc(userRef)
     if (!userSnap.exists()) return
 
     const userData = userSnap.data()
     const updatedPosts = [...(userData.posts || []), postId]
-    const updatedFeed = [...(userData.feed || []), postId] // ✅ add to own feed
+    const updatedFeed = [...(userData.feed || []), postId]
 
-    // 3. Update current user's doc
     await updateDoc(userRef, {
       posts: updatedPosts,
       feed: updatedFeed
     })
 
-    // 4. Append post to followers' feeds
     const followers = userData.followers || []
     await Promise.all(
       followers.map(async (followerId) => {
@@ -64,11 +62,12 @@ async function submitPost() {
       })
     )
 
-    content.value = '' // ✅ Clear after post
+    content.value = ''
   } catch (err) {
     console.error('Failed to post:', err)
   }
 }
+
 </script>
 
 <style scoped>

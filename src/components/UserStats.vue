@@ -1,14 +1,9 @@
 <script setup>
-import { ref, watchEffect } from 'vue'
+import { inject, ref, watchEffect } from 'vue'
 import { doc, getDoc } from 'firebase/firestore'
 import { firestore } from '../firebaseResources'
 
-const props = defineProps({
-  user: {
-    type: Object,
-    required: true
-  }
-})
+const currentUser = inject('currentUser')
 
 const stats = ref({
   posts: 0,
@@ -20,11 +15,10 @@ watchEffect(() => {
   fetchStats()
 })
 
-async function fetchStats() {  
-  if (!props.user?.id && !props.user?.uid) return
+async function fetchStats() {
+  if (!currentUser.value) return
 
-  const userId = props.user.uid || props.user.id
-  const userRef = doc(firestore, 'users', userId)
+  const userRef = doc(firestore, 'users', currentUser.value.uid)
   const userSnap = await getDoc(userRef)
 
   if (userSnap.exists()) {
@@ -34,12 +28,13 @@ async function fetchStats() {
     stats.value.following = data.following?.length || 0
   }
 }
+
 </script>
 
 <template>
   <div class="user-stats">
     <h3>User Stats</h3>
-    <p>Email: {{ user?.email }}</p>
+    <p>Email: {{ currentUser?.value?.email }}</p>
     <p>Posts: {{ stats.posts }}</p>
     <p>Followers: {{ stats.followers }}</p>
     <p>Following: {{ stats.following }}</p>
