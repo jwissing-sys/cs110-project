@@ -1,7 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { auth, firestore } from '../firebaseResources'
-import { doc, getDoc } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  addDoc,
+  updateDoc,
+  serverTimestamp
+} from 'firebase/firestore'
 
 import UserStats from '../components/UserStats.vue'
 import PostInput from '../components/PostInput.vue'
@@ -56,14 +63,61 @@ const loadUserFeed = async (uid) => {
   }
 }
 
-function refreshFeed() {
-  feedKey.value++
-  if (user.value) {
-    loadUserFeed(user.value.uid)
+const addPost = async (content) => {
+  if (!user.value || !content.trim()) {
+    alert('You must be logged in and write something.')
+    return
+  }
+
+  try {
+    // 1. Add post with unresolved timestamp
+    const postRef = await addDoc(collection(firestore, 'posts'), {
+      content,
+      author: user.value.email,
+      timestamp: serverTimestamp()
+    })
+
+    // 2. Get the resolved post back
+    const postSnap = await getDoc(postRef)
+    if (!postSnap.exists()) return
+    const postData = postSnap.data()
+
+    // 3. Update current user's document
+    const userRef = doc(firestore, 'users', user.value.uid)
+    const userSnap = await getDoc(userRef)
+    if (!userSnap.exists()) return
+
+    const userData = userSnap.data()
+    const updatedPosts = [...(userData.posts || []), postRef.id]
+    const updatedFeed = [...(userData.feed || []), postRef.id]
+
+    await updateDoc(userRef, {
+      posts: updatedPosts,
+      feed: updatedFeed
+    })
+
+    // 4. Add post to followers' feeds
+    const followers = userData.followers || []
+    await Promise.all(
+      followers.map(async (followerId) => {
+        const followerRef = doc(firestore, 'users', followerId)
+        const followerSnap = await getDoc(followerRef)
+        if (!followerSnap.exists()) return
+
+        const followerData = followerSnap.data()
+        const followerFeed = [...(followerData.feed || []), postRef.id]
+        await updateDoc(followerRef, { feed: followerFeed })
+      })
+    )
+
+    // 5. Refresh feed UI
+    await loadUserFeed(user.value.uid)
+  } catch (err) {
+    console.error('Error adding post:', err)
+    alert('Failed to post. See console.')
   }
 }
 </script>
-
 
 <template>
   <div class="home-container">
@@ -72,7 +126,7 @@ function refreshFeed() {
     </aside>
 
     <section class="main-feed">
-      <PostInput v-if="user" @post-created="refreshFeed" />
+      <PostInput v-if="user" @post="addPost" />
       <PostFeed v-if="user" :userId="user.uid" :key="feedKey" title="Your Feed" />
       <PostFeed v-else title="Global Feed" />
     </section>
@@ -83,6 +137,7 @@ function refreshFeed() {
     </aside>
   </div>
 </template>
+
 
 
 <style scoped>

@@ -1,10 +1,10 @@
 <template>
-  <div v-if="currentUser">
+  <div v-if="currentUser" class="post-input">
     <h3>Create a Post</h3>
-      <form @submit.prevent="submitPost">
+    <form @submit.prevent="submitPost">
       <textarea v-model.trim="content" placeholder="What's on your mind?" required></textarea>
-    <button type="submit" :disabled="!content">Post</button>
-      </form>
+      <button type="submit" :disabled="!content">Post</button>
+    </form>
   </div>
 </template>
 
@@ -63,13 +63,12 @@ async function submitPost() {
     )
 
     content.value = ''
+    emit('post-created') // tell parent to refresh feed
+
   } catch (err) {
     console.error('Failed to post:', err)
   }
-
-  emit('post-created')  // tell parent to refresh
 }
-
 </script>
 
 <style scoped>
