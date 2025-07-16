@@ -6,20 +6,24 @@
     <input v-model="password" type="password" placeholder="Password" />
 
     <div class="buttons">
-      <button v-if="!isCreatingAccount" @click="login">Log In</button>
-      <button v-else @click="createAccount">Create Account</button>
-
+      <button v-if="!isCreatingAccount && !isLoggedIn" @click="login">Log In</button>
+      <button v-if="isCreatingAccount && !isLoggedIn" @click="createAccount">Create Account</button>
       <button v-if="isLoggedIn" @click="logout">Log Out</button>
 
-      <button class="toggle" @click="toggleMode">
+      <button
+        class="toggle"
+        @click="toggleMode"
+        v-if="!isLoggedIn"
+      >
         {{ isCreatingAccount ? 'Already have an account? Log in' : "Don't have an account? Create one" }}
       </button>
     </div>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="isLoggedIn"> Logged in as {{ auth.currentUser?.email }}</p>
+    <p v-if="isLoggedIn">Logged in as {{ auth.currentUser?.email }}</p>
   </div>
 </template>
+
 
 <script setup>
 import { ref } from 'vue'
@@ -64,34 +68,30 @@ const login = async () => {
       })
     }
 
-    isLoggedIn.value = true
+    email.value = ''
+    password.value = ''
     errorMessage.value = ''
   } catch (error) {
     errorMessage.value = error.message
   }
 }
 
-
 const createAccount = async () => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
 
-    // After signup, create Firestore user doc
     const userRef = doc(firestore, 'users', user.uid)
-    const docSnap = await getDoc(userRef)
+    await setDoc(userRef, {
+      email: user.email,
+      posts: [],
+      feed: [],
+      followers: [],
+      following: []
+    })
 
-    if (!docSnap.exists()) {
-      await setDoc(userRef, {
-        email: user.email,
-        posts: [],
-        feed: [],
-        followers: [],
-        following: []
-      })
-    }
-
-    isLoggedIn.value = true
+    email.value = ''
+    password.value = ''
     errorMessage.value = ''
   } catch (error) {
     errorMessage.value = error.message
@@ -101,17 +101,21 @@ const createAccount = async () => {
 const logout = async () => {
   try {
     await signOut(auth)
-    isLoggedIn.value = false
     errorMessage.value = ''
+    isCreatingAccount.value = false
+    email.value = ''
+    password.value = ''
   } catch (error) {
     errorMessage.value = error.message
   }
 }
 
+// Sync login state automatically
 onAuthStateChanged(auth, (user) => {
   isLoggedIn.value = !!user
 })
 </script>
+
 
 <style scoped>
 .login-panel {

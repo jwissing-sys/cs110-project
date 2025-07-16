@@ -41,19 +41,19 @@ watchEffect(async () => {
     return
   }
 
+  // Profile or Home Feed
   if (props.userId) {
     const userRef = doc(firestore, 'users', props.userId)
     const userSnap = await getDoc(userRef)
 
     if (userSnap.exists()) {
       const data = userSnap.data()
-      const feedIds = data.feed || []
-      const postIds = data.posts || []
 
-      const combinedIds = [...new Set([...feedIds, ...postIds])]
+      const isProfileView = props.title.includes('Posts by')
+      const postIds = isProfileView ? (data.posts || []) : (data.feed || [])
 
       const postDocs = await Promise.all(
-        combinedIds.slice(-10).reverse().map(async (id) => {
+        postIds.slice(-10).reverse().map(async (id) => {
           const snap = await getDoc(doc(firestore, 'posts', id))
           return snap.exists() ? { id: snap.id, ...snap.data() } : null
         })
@@ -62,15 +62,21 @@ watchEffect(async () => {
       internalPosts.value = postDocs
         .filter(Boolean)
         .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
+    } else {
+      internalPosts.value = []
     }
   } else {
+    // Logged-out: Global Feed
     const postsQuery = query(
       collection(firestore, 'posts'),
       orderBy('timestamp', 'desc'),
       limit(10)
     )
     const snap = await getDocs(postsQuery)
-    internalPosts.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    internalPosts.value = snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
   }
 })
 </script>

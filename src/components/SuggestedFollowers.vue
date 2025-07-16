@@ -26,7 +26,7 @@ const suggestions = ref([])
 const following = ref(new Set())
 const loadingIds = ref(new Set())
 
-watchEffect(async () => {
+const loadSuggestions = async () => {
   if (!props.currentUser) {
     suggestions.value = []
     return
@@ -43,21 +43,24 @@ watchEffect(async () => {
   following.value = new Set(currentData?.following || [])
 
   const allUsersSnap = await getDocs(collection(firestore, 'users'))
-  const users = []
+  const candidates = []
 
   allUsersSnap.forEach((snap) => {
     const uid = snap.id
     const userData = snap.data()
-    if (uid !== currentUserId) {
-      users.push({
+    if (uid !== currentUserId && !following.value.has(uid)) {
+      candidates.push({
         uid,
-        email: userData.email,
-        followed: following.value.has(uid)
+        email: userData.email
       })
     }
   })
 
-  suggestions.value = users.sort(() => 0.5 - Math.random()).slice(0, 5)
+  suggestions.value = candidates.sort(() => 0.5 - Math.random()).slice(0, 5)
+}
+
+watchEffect(() => {
+  loadSuggestions()
 })
 
 const follow = async (target) => {
@@ -102,9 +105,9 @@ const follow = async (target) => {
       })
     ])
 
-    suggestions.value = suggestions.value.map((u) =>
-      u.uid === targetUserId ? { ...u, followed: true } : u
-    )
+    // 🔁 Re-fetch suggestions from Firestore
+    await loadSuggestions()
+
   } catch (err) {
     console.error('Error following user:', err)
   } finally {

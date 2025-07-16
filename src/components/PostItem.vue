@@ -12,19 +12,24 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  post: Object
+  post: {
+    type: Object,
+    required: true
+  }
 })
 
 const formattedDate = computed(() => {
   const ts = props.post?.timestamp
-  if (!ts) return ''
+  if (!ts) return 'Unknown date'
 
-  // Support both Firebase Timestamp and ISO string
-  const date = ts.toDate ? ts.toDate() : new Date(ts)
-  return date.toLocaleString()
+  try {
+    const date = ts.toDate ? ts.toDate() : new Date(ts)
+    return date.toLocaleString()
+  } catch {
+    return 'Invalid date'
+  }
 })
 </script>
-
 
 <style scoped>
 .post-item {
@@ -43,3 +48,4 @@ const formattedDate = computed(() => {
   color: #555;
 }
 </style>
+

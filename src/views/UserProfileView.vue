@@ -6,13 +6,13 @@
 
     <section class="main-feed" v-if="viewedUser">
       <h2>Posts by {{ viewedUser.email }}</h2>
-      <PostFeed :userId="viewedUser?.id || viewedUser?.uid" />
+      <PostFeed :userId="viewedUser.id" :title="`Posts by ${viewedUser.email}`" />
     </section>
 
     <aside class="right-panel" v-if="viewedUser">
       <SuggestedFollowers
-        :customList="[]"
-        :title="`Want to follow ${viewedUser.email}?`"
+        :customList="[viewedUser]"
+        :title="`Follow ${viewedUser.email}`"
       />
     </aside>
   </div>

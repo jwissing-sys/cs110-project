@@ -63,13 +63,13 @@ async function submitPost() {
     )
 
     content.value = ''
-    emit('post-created') // tell parent to refresh feed
-
+    emit('post-created')  // Parent component should reload feed on this
   } catch (err) {
     console.error('Failed to post:', err)
   }
 }
 </script>
+
 
 <style scoped>
 .post-input {

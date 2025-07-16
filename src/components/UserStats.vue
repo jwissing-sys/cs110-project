@@ -1,37 +1,45 @@
 <script setup>
-import { inject, ref, watchEffect } from 'vue'
-import { doc, getDoc } from 'firebase/firestore'
+import { ref, watchEffect, onUnmounted, inject, computed } from 'vue'
+import { doc, onSnapshot } from 'firebase/firestore'
 import { firestore } from '../firebaseResources'
 
-const currentUser = inject('currentUser')
+const props = defineProps({
+  user: Object
+})
+
+const fallbackUser = inject('currentUser')
+const user = computed(() => props.user || fallbackUser.value)
 
 const stats = ref({
   posts: 0,
   followers: 0,
   following: 0
 })
-
 const email = ref('')
+let unsubscribe = null
 
 watchEffect(() => {
-  fetchStats()
+  if (!user.value) return
+
+  if (unsubscribe) unsubscribe()
+
+  const userRef = doc(firestore, 'users', user.value.uid || user.value.id)
+  unsubscribe = onSnapshot(userRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data()
+      stats.value.posts = data.posts?.length || 0
+      stats.value.followers = data.followers?.length || 0
+      stats.value.following = data.following?.length || 0
+      email.value = data.email || user.value.email || 'Unknown'
+    }
+  })
 })
 
-async function fetchStats() {
-  if (!currentUser.value) return
-
-  const userRef = doc(firestore, 'users', currentUser.value.uid)
-  const userSnap = await getDoc(userRef)
-
-  if (userSnap.exists()) {
-    const data = userSnap.data()
-    stats.value.posts = data.posts?.length || 0
-    stats.value.followers = data.followers?.length || 0
-    stats.value.following = data.following?.length || 0
-    email.value = data.email || currentUser.value.email || 'Unknown'
-  }
-}
+onUnmounted(() => {
+  if (unsubscribe) unsubscribe()
+})
 </script>
+
 
 <template>
   <div class="user-stats">

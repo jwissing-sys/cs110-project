@@ -1,14 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { auth, firestore } from '../firebaseResources'
-import {
-  collection,
-  doc,
-  getDoc,
-  addDoc,
-  updateDoc,
-  serverTimestamp
-} from 'firebase/firestore'
+import { auth } from '../firebaseResources'
 
 import UserStats from '../components/UserStats.vue'
 import PostInput from '../components/PostInput.vue'
@@ -16,8 +8,6 @@ import PostFeed from '../components/PostFeed.vue'
 import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 
 const user = ref(null)
-const posts = ref([])
-const isLoading = ref(false)
 const feedKey = ref(0)
 
 onMounted(() => {
@@ -27,97 +17,18 @@ onMounted(() => {
         email: firebaseUser.email,
         uid: firebaseUser.uid
       }
-      await loadUserFeed(firebaseUser.uid)
+      feedKey.value++ // trigger PostFeed to refresh
     } else {
       user.value = null
-      posts.value = []
     }
   })
 })
 
-const loadUserFeed = async (uid) => {
-  isLoading.value = true
-  posts.value = []
-
-  try {
-    const userRef = doc(firestore, 'users', uid)
-    const userSnap = await getDoc(userRef)
-    if (!userSnap.exists()) return
-
-    const feedIds = userSnap.data().feed || []
-    const postIds = userSnap.data().posts || []
-    const combined = [...new Set([...feedIds, ...postIds])]
-
-    const fetched = await Promise.all(
-      combined.slice(-10).reverse().map(async (id) => {
-        const snap = await getDoc(doc(firestore, 'posts', id))
-        return snap.exists() ? { id, ...snap.data() } : null
-      })
-    )
-
-    posts.value = fetched.filter(Boolean)
-  } catch (err) {
-    console.error('Failed to load feed:', err)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const addPost = async (content) => {
-  if (!user.value || !content.trim()) {
-    alert('You must be logged in and write something.')
-    return
-  }
-
-  try {
-    // 1. Add post with unresolved timestamp
-    const postRef = await addDoc(collection(firestore, 'posts'), {
-      content,
-      author: user.value.email,
-      timestamp: serverTimestamp()
-    })
-
-    // 2. Get the resolved post back
-    const postSnap = await getDoc(postRef)
-    if (!postSnap.exists()) return
-    const postData = postSnap.data()
-
-    // 3. Update current user's document
-    const userRef = doc(firestore, 'users', user.value.uid)
-    const userSnap = await getDoc(userRef)
-    if (!userSnap.exists()) return
-
-    const userData = userSnap.data()
-    const updatedPosts = [...(userData.posts || []), postRef.id]
-    const updatedFeed = [...(userData.feed || []), postRef.id]
-
-    await updateDoc(userRef, {
-      posts: updatedPosts,
-      feed: updatedFeed
-    })
-
-    // 4. Add post to followers' feeds
-    const followers = userData.followers || []
-    await Promise.all(
-      followers.map(async (followerId) => {
-        const followerRef = doc(firestore, 'users', followerId)
-        const followerSnap = await getDoc(followerRef)
-        if (!followerSnap.exists()) return
-
-        const followerData = followerSnap.data()
-        const followerFeed = [...(followerData.feed || []), postRef.id]
-        await updateDoc(followerRef, { feed: followerFeed })
-      })
-    )
-
-    // 5. Refresh feed UI
-    await loadUserFeed(user.value.uid)
-  } catch (err) {
-    console.error('Error adding post:', err)
-    alert('Failed to post. See console.')
-  }
+const reloadFeed = () => {
+  feedKey.value++
 }
 </script>
+
 
 <template>
   <div class="home-container">
@@ -126,9 +37,18 @@ const addPost = async (content) => {
     </aside>
 
     <section class="main-feed">
-      <PostInput v-if="user" @post="addPost" />
-      <PostFeed v-if="user" :userId="user.uid" :key="feedKey" title="Your Feed" />
-      <PostFeed v-else title="Global Feed" />
+      <PostInput v-if="user" @post-created="reloadFeed" />
+      <PostFeed
+        v-if="user"
+        :userId="user.uid"
+        :key="`user-${feedKey}`"
+        title="Your Feed"
+      />
+      <PostFeed
+        v-else
+        :key="`global-${feedKey}`"
+        title="Global Feed"
+      />
     </section>
 
     <aside class="right-panel">
@@ -137,8 +57,6 @@ const addPost = async (content) => {
     </aside>
   </div>
 </template>
-
-
 
 <style scoped>
 .home-container {
