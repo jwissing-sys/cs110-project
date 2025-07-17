@@ -28,9 +28,21 @@ const loadingIds = ref(new Set())
 
 const loadSuggestions = async () => {
   if (!props.currentUser) {
-    suggestions.value = []
-    return
-  }
+  const allUsersSnap = await getDocs(collection(firestore, 'users'))
+  const users = []
+
+  allUsersSnap.forEach((snap) => {
+    users.push({
+      uid: snap.id,
+      email: snap.data().email,
+      followed: false
+    })
+  })
+
+  suggestions.value = users.sort(() => 0.5 - Math.random()).slice(0, 5)
+  return
+}
+
 
   if (props.customList.length) {
     suggestions.value = props.customList.map((u) => ({ ...u, followed: true }))

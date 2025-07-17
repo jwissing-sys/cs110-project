@@ -5,14 +5,13 @@
     </aside>
 
     <section class="main-feed" v-if="viewedUser">
-      <h2>Posts by {{ viewedUser.email }}</h2>
       <PostFeed :userId="viewedUser.id" :title="`Posts by ${viewedUser.email}`" />
     </section>
 
     <aside class="right-panel" v-if="viewedUser">
       <SuggestedFollowers
-        :customList="[viewedUser]"
-        :title="`Follow ${viewedUser.email}`"
+        :currentUser="currentUser"
+        title="Suggested Users"
       />
     </aside>
   </div>
@@ -22,7 +21,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { doc, getDoc } from 'firebase/firestore'
-import { firestore } from '../firebaseResources'
+import { firestore, auth } from '../firebaseResources'
 
 import UserStats from '../components/UserStats.vue'
 import PostFeed from '../components/PostFeed.vue'
@@ -30,6 +29,7 @@ import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 
 const route = useRoute()
 const viewedUser = ref(null)
+const currentUser = ref(auth.currentUser)
 
 onMounted(async () => {
   const userId = route.params.id
