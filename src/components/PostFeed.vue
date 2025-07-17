@@ -25,8 +25,8 @@ import { firestore, auth } from '../firebaseResources'
 import PostItem from './PostItem.vue'
 
 const props = defineProps({
-  posts: Array,
-  userId: String,
+  posts: Array,        // optional preloaded list
+  userId: String,      // profile mode ONLY
   title: {
     type: String,
     default: 'Recent Posts'
@@ -38,79 +38,93 @@ const internalPosts = ref([])
 watchEffect(async () => {
   const currentUserId = auth.currentUser?.uid || null
 
+  // ----- CASE A: Pre-supplied posts -----
   if (props.posts?.length) {
     internalPosts.value = props.posts
     return
   }
 
-  // CASE 1: Profile View
+  // ----- CASE B: Profile View (props.userId present) -----
   if (props.userId) {
     const userRef = doc(firestore, 'users', props.userId)
     const userSnap = await getDoc(userRef)
-
     if (!userSnap.exists()) {
       internalPosts.value = []
       return
     }
 
     const userData = userSnap.data()
-    const isViewingOwnProfile = props.userId === currentUserId
-    const isProfileView = props.title.includes('Posts by')
-
-    const postIds = isProfileView || isViewingOwnProfile
-      ? (userData.posts || [])
-      : (userData.feed || [])
+    const postIds = userData.posts || []
 
     const postDocs = await Promise.all(
-      postIds.slice(-10).reverse().map(async (id) => {
-        const snap = await getDoc(doc(firestore, 'posts', id))
-        return snap.exists() ? { id: snap.id, ...snap.data() } : null
-      })
+      postIds
+        .slice(-20)          // grab last 20 IDs; adjust if you like
+        .reverse()
+        .map(async (id) => {
+          const snap = await getDoc(doc(firestore, 'posts', id))
+          return snap.exists() ? { id: snap.id, ...snap.data() } : null
+        })
     )
 
     internalPosts.value = postDocs
       .filter(Boolean)
-      .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
+      .sort((a, b) => {
+        const at = a.timestamp?.seconds ?? a.timestamp?.toMillis?.() ?? 0
+        const bt = b.timestamp?.seconds ?? b.timestamp?.toMillis?.() ?? 0
+        return bt - at
+      })
+    return
+  }
 
-  } else if (!currentUserId) {
-    // CASE 2: Global feed (not logged in)
+  // ----- CASE C: Global feed (not logged in) -----
+  if (!currentUserId) {
     const postsQuery = query(
       collection(firestore, 'posts'),
       orderBy('timestamp', 'desc'),
       limit(10)
     )
     const snap = await getDocs(postsQuery)
-
     internalPosts.value = snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }))
-  } else {
-    // CASE 3: Home feed while logged in — show followed users’ posts only
-    const userRef = doc(firestore, 'users', currentUserId)
-    const userSnap = await getDoc(userRef)
-
-    if (!userSnap.exists()) {
-      internalPosts.value = []
-      return
-    }
-
-    const userData = userSnap.data()
-    const feedIds = userData.feed || []
-
-    const postDocs = await Promise.all(
-      feedIds.slice(-10).reverse().map(async (id) => {
-        const snap = await getDoc(doc(firestore, 'posts', id))
-        return snap.exists() ? { id: snap.id, ...snap.data() } : null
-      })
-    )
-
-    // 🚫 Filter out self-authored posts (just in case they slipped into feed)
-    internalPosts.value = postDocs
-      .filter(Boolean)
-      .filter(post => post.authorId !== currentUserId)
-      .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
+    return
   }
+
+  // ----- CASE D: Home feed (logged in, no userId prop) -----
+  const userRef = doc(firestore, 'users', currentUserId)
+  const userSnap = await getDoc(userRef)
+  if (!userSnap.exists()) {
+    internalPosts.value = []
+    return
+  }
+
+  const userData = userSnap.data()
+  const followingIds = userData.following || []
+
+  if (!followingIds.length) {
+    internalPosts.value = []
+    return
+  }
+
+  // Pull recent posts and filter by followed authors
+  const postsQuery = query(
+    collection(firestore, 'posts'),
+    orderBy('timestamp', 'desc'),
+    limit(30)
+  )
+  const snap = await getDocs(postsQuery)
+
+  internalPosts.value = snap.docs
+    .map(doc => ({ id: doc.id, ...doc.data() }))
+    .filter(post => followingIds.includes(post.authorId))
+    // hedge: don't show own posts even if user somehow follows self
+    .filter(post => post.authorId !== currentUserId)
+    .sort((a, b) => {
+      const at = a.timestamp?.seconds ?? a.timestamp?.toMillis?.() ?? 0
+      const bt = b.timestamp?.seconds ?? b.timestamp?.toMillis?.() ?? 0
+      return bt - at
+    })
 })
 </script>
 
@@ -125,7 +139,6 @@ watchEffect(async () => {
   background-color: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
-
 .feed-title {
   text-align: center;
   margin-top: 0.5rem;
@@ -133,7 +146,6 @@ watchEffect(async () => {
   font-weight: 600;
   color: #333;
 }
-
 .no-posts {
   text-align: center;
   color: #777;

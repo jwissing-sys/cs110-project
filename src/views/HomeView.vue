@@ -10,6 +10,7 @@ import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 const user = ref(null)
 const feedKey = ref(0)
 
+
 onMounted(() => {
   auth.onAuthStateChanged((firebaseUser) => {
     if (firebaseUser) {
@@ -40,11 +41,11 @@ const reloadFeed = () => {
 
       <!--  FEED for logged-in user: shows followed posts only -->
       <PostFeed
-        v-if="user"
-        :userId="user.uid"
-        :key="`user-${feedKey}`"
-        title="Feed"
-      />
+  v-if="user"
+  :key="`user-${feedKey}`"
+  title="Feed"
+/>
+
 
       <!--  Global feed for logged-out users -->
       <PostFeed
@@ -55,7 +56,12 @@ const reloadFeed = () => {
     </section>
 
     <aside class="right-panel">
-      <SuggestedFollowers v-if="user" :currentUser="user" />
+      <SuggestedFollowers
+  v-if="user"
+  :currentUser="user"
+  @user-followed="reloadFeed"
+/>
+
       <SuggestedFollowers v-else :customList="[]" title="Suggested Users" />
     </aside>
   </div>

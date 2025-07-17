@@ -9,7 +9,7 @@ import {
   getDoc,
   updateDoc
 } from 'firebase/firestore'
-
+const emit = defineEmits(['user-followed'])
 const props = defineProps({
   currentUser: Object,
   customList: {
@@ -125,6 +125,8 @@ const follow = async (target) => {
   } finally {
     loadingIds.value.delete(targetUserId)
   }
+  emit('user-followed')
+
 }
 </script>
 

@@ -30,11 +30,12 @@ async function submitPost() {
 
   try {
     const newPostRef = await addDoc(collection(firestore, 'posts'), {
-      content: content.value,
-      author: user.email,
-      timestamp: Timestamp.now(),
-      authorId: user.uid  //  This enables filtering
-    })
+  content: content.value,
+  author: user.email,
+  authorId: user.uid, // ← REQUIRED for filtering
+  timestamp: Timestamp.now()
+})
+
 
     const postId = newPostRef.id
 
