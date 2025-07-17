@@ -27,28 +27,25 @@ const following = ref(new Set())
 const loadingIds = ref(new Set())
 
 const loadSuggestions = async () => {
-  if (!props.currentUser) {
-  const allUsersSnap = await getDocs(collection(firestore, 'users'))
-  const users = []
-
-  allUsersSnap.forEach((snap) => {
-    users.push({
-      uid: snap.id,
-      email: snap.data().email,
-      followed: false
-    })
-  })
-
-  suggestions.value = users.sort(() => 0.5 - Math.random()).slice(0, 5)
-  return
-}
-
-
+  // If custom list passed (e.g. in profile), use that directly
   if (props.customList.length) {
     suggestions.value = props.customList.map((u) => ({ ...u, followed: true }))
     return
   }
 
+  // If user is logged out or no currentUser, show anonymous suggestions
+  if (!props.currentUser) {
+    const allUsersSnap = await getDocs(collection(firestore, 'users'))
+    const users = allUsersSnap.docs.map(snap => ({
+      uid: snap.id,
+      email: snap.data().email,
+      followed: false
+    }))
+    suggestions.value = users.sort(() => 0.5 - Math.random()).slice(0, 5)
+    return
+  }
+
+  // Logged in: show users they are not following yet
   const currentUserId = props.currentUser.uid
   const userSnap = await getDoc(doc(firestore, 'users', currentUserId))
   const currentData = userSnap.data()
@@ -117,7 +114,6 @@ const follow = async (target) => {
       })
     ])
 
-    // 🔁 Re-fetch suggestions from Firestore
     await loadSuggestions()
 
   } catch (err) {
@@ -127,7 +123,6 @@ const follow = async (target) => {
   }
 }
 </script>
-
 
 <template>
   <div class="suggested-followers">

@@ -39,7 +39,6 @@ const reloadFeed = () => {
       <PostInput v-if="user" @post-created="reloadFeed" />
       <PostFeed
         v-if="user"
-        :userId="user.uid"
         :key="`user-${feedKey}`"
         title="Your Feed"
       />

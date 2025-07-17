@@ -1,18 +1,15 @@
 <template>
-  <div class="profile-view">
-    <aside class="left-panel" v-if="viewedUser">
+  <div class="profile-view" v-if="viewedUser">
+    <aside class="left-panel">
       <UserStats :user="viewedUser" />
     </aside>
 
-    <section class="main-feed" v-if="viewedUser">
+    <section class="main-feed">
       <PostFeed :userId="viewedUser.id" :title="`Posts by ${viewedUser.email}`" />
     </section>
 
-    <aside class="right-panel" v-if="viewedUser">
-      <SuggestedFollowers
-        :currentUser="currentUser"
-        title="Suggested Users"
-      />
+    <aside class="right-panel" v-if="currentUser?.uid !== viewedUser.id">
+      <SuggestedFollowers :currentUser="currentUser" />
     </aside>
   </div>
 </template>
@@ -21,7 +18,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { doc, getDoc } from 'firebase/firestore'
-import { firestore, auth } from '../firebaseResources'
+import { auth, firestore } from '../firebaseResources'
+import { onAuthStateChanged } from 'firebase/auth'
 
 import UserStats from '../components/UserStats.vue'
 import PostFeed from '../components/PostFeed.vue'
@@ -29,9 +27,14 @@ import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 
 const route = useRoute()
 const viewedUser = ref(null)
-const currentUser = ref(auth.currentUser)
+const currentUser = ref(null)
 
 onMounted(async () => {
+  // Watch for current auth user
+  onAuthStateChanged(auth, (user) => {
+    currentUser.value = user
+  })
+
   const userId = route.params.id
   if (!userId) return
 
