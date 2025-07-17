@@ -114,6 +114,10 @@ const follow = async (target) => {
       })
     ])
 
+    suggestions.value = suggestions.value.map((u) =>
+  u.uid === targetUserId ? { ...u, followed: true } : u
+  )
+
     await loadSuggestions()
 
   } catch (err) {

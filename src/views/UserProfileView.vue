@@ -48,16 +48,14 @@ onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     currentUser.value = user
   })
-
   loadUser(route.params.id)
 })
 
-// Watch for route changes to re-load profile
-watch(() => route.params.id, async (newId) => {
+// watch for route changes to reload profile
+watch(() => route.params.id, (newId) => {
   loadUser(newId)
 })
 </script>
-
 
 <style scoped>
 .profile-view {

@@ -43,7 +43,7 @@ watchEffect(async () => {
 
   const currentUserId = auth.currentUser?.uid || null
 
-  // CASE 1: Viewing a user's profile
+  // CASE 1: User Profile View
   if (props.userId) {
     const userRef = doc(firestore, 'users', props.userId)
     const userSnap = await getDoc(userRef)
@@ -54,10 +54,12 @@ watchEffect(async () => {
     }
 
     const userData = userSnap.data()
-
-    // Show only their own posts on their profile page
+    const isViewingOwnProfile = props.userId === currentUserId
     const isProfileView = props.title.includes('Posts by')
-    const postIds = isProfileView ? (userData.posts || []) : (userData.feed || [])
+
+    const postIds = isProfileView || isViewingOwnProfile
+      ? (userData.posts || [])
+      : (userData.feed || [])
 
     const postDocs = await Promise.all(
       postIds.slice(-10).reverse().map(async (id) => {
@@ -70,8 +72,8 @@ watchEffect(async () => {
       .filter(Boolean)
       .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
 
-  } else {
-    // CASE 2: Global feed (only when logged out)
+  } else if (!currentUserId) {
+    // CASE 2: Global feed for logged-out users
     const postsQuery = query(
       collection(firestore, 'posts'),
       orderBy('timestamp', 'desc'),
@@ -83,6 +85,29 @@ watchEffect(async () => {
       id: doc.id,
       ...doc.data()
     }))
+  } else {
+    // CASE 3: Logged-in homepage feed (followed users only)
+    const userRef = doc(firestore, 'users', currentUserId)
+    const userSnap = await getDoc(userRef)
+
+    if (!userSnap.exists()) {
+      internalPosts.value = []
+      return
+    }
+
+    const userData = userSnap.data()
+    const feedIds = userData.feed || []
+
+    const postDocs = await Promise.all(
+      feedIds.slice(-10).reverse().map(async (id) => {
+        const snap = await getDoc(doc(firestore, 'posts', id))
+        return snap.exists() ? { id: snap.id, ...snap.data() } : null
+      })
+    )
+
+    internalPosts.value = postDocs
+      .filter(Boolean)
+      .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
   }
 })
 </script>

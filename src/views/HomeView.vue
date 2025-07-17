@@ -11,16 +11,16 @@ const user = ref(null)
 const feedKey = ref(0)
 
 onMounted(() => {
-  auth.onAuthStateChanged(async (firebaseUser) => {
+  auth.onAuthStateChanged((firebaseUser) => {
     if (firebaseUser) {
       user.value = {
         email: firebaseUser.email,
         uid: firebaseUser.uid
       }
-      feedKey.value++ // trigger PostFeed to refresh
     } else {
       user.value = null
     }
+    feedKey.value++ // always refresh feed after auth change
   })
 })
 
@@ -37,19 +37,22 @@ const reloadFeed = () => {
 
     <section class="main-feed">
       <PostInput v-if="user" @post-created="reloadFeed" />
+
+      <!--  FEED for logged-in user: shows followed posts only -->
       <PostFeed
         v-if="user"
         :userId="user.uid"
         :key="`user-${feedKey}`"
         title="Feed"
       />
+
+      <!--  Global feed for logged-out users -->
       <PostFeed
         v-else
         :key="`global-${feedKey}`"
         title="Global Feed"
       />
     </section>
-
 
     <aside class="right-panel">
       <SuggestedFollowers v-if="user" :currentUser="user" />
@@ -81,7 +84,6 @@ const reloadFeed = () => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-/* Responsive stacking layout */
 @media (max-width: 900px) {
   .home-container {
     display: flex;
