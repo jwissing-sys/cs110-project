@@ -36,14 +36,14 @@ const props = defineProps({
 const internalPosts = ref([])
 
 watchEffect(async () => {
+  const currentUserId = auth.currentUser?.uid || null
+
   if (props.posts?.length) {
     internalPosts.value = props.posts
     return
   }
 
-  const currentUserId = auth.currentUser?.uid || null
-
-  // CASE 1: User Profile View
+  // CASE 1: Profile View
   if (props.userId) {
     const userRef = doc(firestore, 'users', props.userId)
     const userSnap = await getDoc(userRef)
@@ -73,7 +73,7 @@ watchEffect(async () => {
       .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
 
   } else if (!currentUserId) {
-    // CASE 2: Global feed for logged-out users
+    // CASE 2: Global feed (not logged in)
     const postsQuery = query(
       collection(firestore, 'posts'),
       orderBy('timestamp', 'desc'),
@@ -86,7 +86,7 @@ watchEffect(async () => {
       ...doc.data()
     }))
   } else {
-    // CASE 3: Logged-in homepage feed (followed users only)
+    // CASE 3: Home feed while logged in — show followed users’ posts only
     const userRef = doc(firestore, 'users', currentUserId)
     const userSnap = await getDoc(userRef)
 
@@ -105,6 +105,7 @@ watchEffect(async () => {
       })
     )
 
+    // 🚫 Filter out self-authored posts (just in case they slipped into feed)
     internalPosts.value = postDocs
       .filter(Boolean)
       .filter(post => post.authorId !== currentUserId)
@@ -112,7 +113,6 @@ watchEffect(async () => {
   }
 })
 </script>
-
 
 <style scoped>
 .post-feed {

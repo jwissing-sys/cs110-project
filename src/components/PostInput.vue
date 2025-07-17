@@ -44,7 +44,6 @@ async function submitPost() {
 
     const userData = userSnap.data()
     const updatedPosts = [...(userData.posts || []), postId]
-    const updatedFeed = [...(userData.feed || []), postId]
 
     await updateDoc(userRef, {
       posts: updatedPosts,
