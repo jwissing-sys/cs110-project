@@ -21,7 +21,7 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore'
-import { firestore } from '../firebaseResources'
+import { firestore, auth } from '../firebaseResources'
 import PostItem from './PostItem.vue'
 
 const props = defineProps({
@@ -41,42 +41,49 @@ watchEffect(async () => {
     return
   }
 
-  // Profile or Home Feed
+  const currentUserId = auth.currentUser?.uid || null
+
+  // Case 1: Viewing a user profile
   if (props.userId) {
     const userRef = doc(firestore, 'users', props.userId)
     const userSnap = await getDoc(userRef)
 
-    if (userSnap.exists()) {
-      const data = userSnap.data()
-
-      const isProfileView = props.title.includes('Posts by')
-      const postIds = isProfileView ? (data.posts || []) : (data.feed || [])
-
-      const postDocs = await Promise.all(
-        postIds.slice(-10).reverse().map(async (id) => {
-          const snap = await getDoc(doc(firestore, 'posts', id))
-          return snap.exists() ? { id: snap.id, ...snap.data() } : null
-        })
-      )
-
-      internalPosts.value = postDocs
-        .filter(Boolean)
-        .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
-    } else {
+    if (!userSnap.exists()) {
       internalPosts.value = []
+      return
     }
+
+    const userData = userSnap.data()
+    const isOwnProfile = currentUserId && props.userId === currentUserId
+    const isProfileView = props.title.includes('Posts by')
+
+    const postIds = isProfileView || isOwnProfile
+      ? userData.posts || []
+      : userData.feed || []
+
+    const postDocs = await Promise.all(
+      postIds.slice(-10).reverse().map(async (id) => {
+        const snap = await getDoc(doc(firestore, 'posts', id))
+        return snap.exists() ? { id: snap.id, ...snap.data() } : null
+      })
+    )
+
+    internalPosts.value = postDocs
+      .filter(Boolean)
+      .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
+
   } else {
-    // Logged-out: Global Feed
+    // Case 2: Logged out or global view
     const postsQuery = query(
       collection(firestore, 'posts'),
       orderBy('timestamp', 'desc'),
       limit(10)
     )
     const snap = await getDocs(postsQuery)
-    internalPosts.value = snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+
+    internalPosts.value = snap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(post => post.authorId !== currentUserId) // 🔥 exclude your own posts
   }
 })
 </script>
