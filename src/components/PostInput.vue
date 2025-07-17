@@ -48,7 +48,6 @@ async function submitPost() {
 
     await updateDoc(userRef, {
       posts: updatedPosts,
-      feed: updatedFeed
     })
 
     const followers = userData.followers || []
