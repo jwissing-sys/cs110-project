@@ -107,6 +107,7 @@ watchEffect(async () => {
 
     internalPosts.value = postDocs
       .filter(Boolean)
+      .filter(post => post.authorId !== currentUserId)
       .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
   }
 })
