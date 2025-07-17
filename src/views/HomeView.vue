@@ -39,8 +39,9 @@ const reloadFeed = () => {
       <PostInput v-if="user" @post-created="reloadFeed" />
       <PostFeed
         v-if="user"
+        :userId="user.uid"
         :key="`user-${feedKey}`"
-        title="Your Feed"
+        title="Feed"
       />
       <PostFeed
         v-else
@@ -48,6 +49,7 @@ const reloadFeed = () => {
         title="Global Feed"
       />
     </section>
+
 
     <aside class="right-panel">
       <SuggestedFollowers v-if="user" :currentUser="user" />

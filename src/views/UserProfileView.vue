@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, firestore } from '../firebaseResources'
@@ -29,15 +29,8 @@ const route = useRoute()
 const viewedUser = ref(null)
 const currentUser = ref(null)
 
-onMounted(async () => {
-  // Watch for current auth user
-  onAuthStateChanged(auth, (user) => {
-    currentUser.value = user
-  })
-
-  const userId = route.params.id
+const loadUser = async (userId) => {
   if (!userId) return
-
   try {
     const userDoc = await getDoc(doc(firestore, 'users', userId))
     if (userDoc.exists()) {
@@ -49,8 +42,22 @@ onMounted(async () => {
     console.error('Failed to load profile:', err)
     viewedUser.value = null
   }
+}
+
+onMounted(() => {
+  onAuthStateChanged(auth, (user) => {
+    currentUser.value = user
+  })
+
+  loadUser(route.params.id)
+})
+
+// Watch for route changes to re-load profile
+watch(() => route.params.id, async (newId) => {
+  loadUser(newId)
 })
 </script>
+
 
 <style scoped>
 .profile-view {

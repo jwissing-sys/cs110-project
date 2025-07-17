@@ -43,7 +43,7 @@ watchEffect(async () => {
 
   const currentUserId = auth.currentUser?.uid || null
 
-  // Case 1: Viewing a user profile
+  // CASE 1: Viewing a user's profile
   if (props.userId) {
     const userRef = doc(firestore, 'users', props.userId)
     const userSnap = await getDoc(userRef)
@@ -54,12 +54,10 @@ watchEffect(async () => {
     }
 
     const userData = userSnap.data()
-    const isOwnProfile = currentUserId && props.userId === currentUserId
-    const isProfileView = props.title.includes('Posts by')
 
-    const postIds = isProfileView || isOwnProfile
-      ? userData.posts || []
-      : userData.feed || []
+    // Show only their own posts on their profile page
+    const isProfileView = props.title.includes('Posts by')
+    const postIds = isProfileView ? (userData.posts || []) : (userData.feed || [])
 
     const postDocs = await Promise.all(
       postIds.slice(-10).reverse().map(async (id) => {
@@ -73,7 +71,7 @@ watchEffect(async () => {
       .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)
 
   } else {
-    // Case 2: Logged out or global view
+    // CASE 2: Global feed (only when logged out)
     const postsQuery = query(
       collection(firestore, 'posts'),
       orderBy('timestamp', 'desc'),
@@ -81,12 +79,14 @@ watchEffect(async () => {
     )
     const snap = await getDocs(postsQuery)
 
-    internalPosts.value = snap.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(post => post.authorId !== currentUserId) // 🔥 exclude your own posts
+    internalPosts.value = snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
   }
 })
 </script>
+
 
 <style scoped>
 .post-feed {
