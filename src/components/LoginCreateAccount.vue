@@ -24,7 +24,6 @@
   </div>
 </template>
 
-
 <script setup>
 import { ref } from 'vue'
 import { auth } from '../firebaseResources'
@@ -50,6 +49,12 @@ const toggleMode = () => {
   password.value = ''
 }
 
+const getRoleForEmail = (email) => {
+  if (email === 'admin@test.com') return 'admin'
+  if (['mod1@test.com', 'mod2@test.com', 'mod3@test.com'].includes(email)) return 'reviewer'
+  return 'user'
+}
+
 const login = async () => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value)
@@ -64,7 +69,10 @@ const login = async () => {
         posts: [],
         feed: [],
         followers: [],
-        following: []
+        following: [],
+        strikes: 0,
+        bannedUntil: null,
+        role: getRoleForEmail(user.email)
       })
     }
 
@@ -87,7 +95,10 @@ const createAccount = async () => {
       posts: [],
       feed: [],
       followers: [],
-      following: []
+      following: [],
+      strikes: 0,
+      bannedUntil: null,
+      role: getRoleForEmail(user.email)
     })
 
     email.value = ''

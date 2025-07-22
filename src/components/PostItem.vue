@@ -4,12 +4,23 @@
       <strong>{{ post.author || 'Unknown' }}</strong>
       <span class="timestamp">{{ formattedDate }}</span>
     </div>
+
     <p>{{ post.content || '[No content]' }}</p>
+
+    <div v-if="post.flagged" class="flag-label">⚠️ Flagged Post</div>
+
+    <!-- VotingBox shown only to reviewers -->
+    <VotingBox
+      v-if="post.flagged && isReviewer && post.id && currentUser?.uid"
+      :postId="post.id"
+      :userId="currentUser.uid"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
+import VotingBox from './VotingBox.vue'
 
 const props = defineProps({
   post: {
@@ -17,6 +28,10 @@ const props = defineProps({
     required: true
   }
 })
+
+// Inject currentUser from parent (e.g., HomeView)
+const currentUser = inject('currentUser')
+const isReviewer = computed(() => currentUser?.value?.role === 'reviewer')
 
 const formattedDate = computed(() => {
   const ts = props.post?.timestamp
@@ -46,6 +61,12 @@ const formattedDate = computed(() => {
   justify-content: space-between;
   font-size: 0.9rem;
   color: #555;
+}
+
+.flag-label {
+  color: #b30000;
+  font-weight: bold;
+  margin-top: 0.5rem;
 }
 </style>
 

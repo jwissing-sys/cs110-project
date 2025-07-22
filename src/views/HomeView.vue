@@ -1,27 +1,49 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, provide } from 'vue'
 import { auth } from '../firebaseResources'
+import { doc, getDoc } from 'firebase/firestore'
+import { firestore } from '../firebaseResources'
 
+import ModerationBanner from '../components/ModerationBanner.vue'
 import UserStats from '../components/UserStats.vue'
 import PostInput from '../components/PostInput.vue'
 import PostFeed from '../components/PostFeed.vue'
 import SuggestedFollowers from '../components/SuggestedFollowers.vue'
 
 const user = ref(null)
+const bannedUntil = ref(null)
 const feedKey = ref(0)
 
+// Provide current user to child components like PostItem
+provide('currentUser', user)
 
 onMounted(() => {
-  auth.onAuthStateChanged((firebaseUser) => {
+  auth.onAuthStateChanged(async (firebaseUser) => {
     if (firebaseUser) {
-      user.value = {
-        email: firebaseUser.email,
-        uid: firebaseUser.uid
+      const userRef = doc(firestore, 'users', firebaseUser.uid)
+      const docSnap = await getDoc(userRef)
+
+      if (docSnap.exists()) {
+        const userData = docSnap.data()
+
+        user.value = {
+          email: firebaseUser.email,
+          uid: firebaseUser.uid,
+          role: userData.role || 'user'
+        }
+
+        if (userData.bannedUntil) {
+          bannedUntil.value = userData.bannedUntil.toDate()
+        } else {
+          bannedUntil.value = null
+        }
       }
     } else {
       user.value = null
+      bannedUntil.value = null
     }
-    feedKey.value++ // always refresh feed after auth change
+
+    feedKey.value++ // refresh feed on auth change
   })
 })
 
@@ -30,6 +52,8 @@ const reloadFeed = () => {
 }
 </script>
 
+
+
 <template>
   <div class="home-container">
     <aside class="left-panel" v-if="user">
@@ -37,15 +61,14 @@ const reloadFeed = () => {
     </aside>
 
     <section class="main-feed">
+      <ModerationBanner v-if="bannedUntil" :bannedUntil="bannedUntil" />
       <PostInput v-if="user" @post-created="reloadFeed" />
-
       <!--  FEED for logged-in user: shows followed posts only -->
       <PostFeed
   v-if="user"
   :key="`user-${feedKey}`"
   title="Feed"
 />
-
 
       <!--  Global feed for logged-out users -->
       <PostFeed
