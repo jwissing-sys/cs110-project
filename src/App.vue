@@ -6,12 +6,12 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { doc, onSnapshot } from 'firebase/firestore'
 import NavigationBar from './components/NavigationBar.vue'
 
-// 👉 NEW: Load moderation words
+// Load banned word list once from Firestore
 import { loadBannedWordsOnce } from './utils/moderationUtils'
 
 const router = useRouter()
 
-// 👤 currentUser
+// 👤 Track the current user and make it available globally
 const currentUser = ref(null)
 provide('currentUser', currentUser)
 
@@ -19,9 +19,10 @@ watch(currentUser, (val) => {
   console.log('📌 App.vue: currentUser updated:', val)
 })
 
-// ⛔ bannedWords loaded once
+let unsubscribeUserSnapshot = null
+
 onMounted(() => {
-  loadBannedWordsOnce() // ✅ fetch from Firestore and cache
+  loadBannedWordsOnce()
 
   onAuthStateChanged(auth, (firebaseUser) => {
     if (unsubscribeUserSnapshot) {
@@ -53,13 +54,10 @@ onMounted(() => {
     }
   })
 })
-
-// 🧹 unsubscribe cleanup
-let unsubscribeUserSnapshot = null
 </script>
 
 <template>
-  <NavigationBar />
+  <NavigationBar :user="currentUser" />
   <main>
     <RouterView />
   </main>
@@ -68,12 +66,8 @@ let unsubscribeUserSnapshot = null
 <style>
 body {
   padding-top: 80px;
-}
-</style>
-<!-- Global styles -->
-<style>
-body {
-  padding-top: 80px;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 </style>
 

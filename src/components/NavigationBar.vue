@@ -1,44 +1,51 @@
 <template>
   <header>
     <nav>
-      <RouterLink to="/">Home</RouterLink>
-      <RouterLink to="/login">Login/Create</RouterLink>
+      <div class="nav-left">
+        <RouterLink to="/">Home</RouterLink>
 
-      <!-- ✅ Show only if role is reviewer or admin -->
-      <RouterLink
-        v-if="currentUser?.role === 'reviewer' || currentUser?.role === 'admin'"
-        to="/flagged-posts-review"
-      >
-        Review Posts
-      </RouterLink>
+        <!-- Only show if user is a reviewer -->
+        <RouterLink
+          v-if="currentUser?.role === 'reviewer'"
+          to="/flagged-posts-review"
+        >
+          Review Posts
+        </RouterLink>
+      </div>
 
-      <button v-if="isLoggedIn" @click="logout">Log Out</button>
+      <div class="nav-right">
+        <RouterLink v-if="!isLoggedIn" to="/login">Login/Create</RouterLink>
+        <button v-if="isLoggedIn" @click="logout">Log Out</button>
+      </div>
     </nav>
   </header>
 </template>
 
 <script setup>
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { ref, inject, watch } from 'vue'
 import { auth } from '../firebaseResources'
-import { signOut } from 'firebase/auth'
+import { signOut, onAuthStateChanged } from 'firebase/auth'
 
-// Track current user role (injected from App.vue)
+// 👤 Inject currentUser from App.vue
 const currentUser = inject('currentUser', ref(null))
 
-// Track whether someone is logged in
+// Track login status
 const isLoggedIn = ref(false)
-auth.onAuthStateChanged(user => {
+
+onAuthStateChanged(auth, (user) => {
   isLoggedIn.value = !!user
 })
 
-// Handle logout
+// 🔓 Handle logout
+const router = useRouter()
 const logout = async () => {
   await signOut(auth)
   isLoggedIn.value = false
+  router.push('/')
 }
 
-// Debug currentUser injection
+// Debugging
 watch(currentUser, (val) => {
   console.log('🔍 NavigationBar currentUser:', val)
 })
@@ -62,6 +69,12 @@ nav {
   align-items: center;
   max-width: 960px;
   margin: 0 auto;
+}
+
+.nav-left,
+.nav-right {
+  display: flex;
+  align-items: center;
 }
 
 nav a {
