@@ -52,8 +52,6 @@ const reloadFeed = () => {
 }
 </script>
 
-
-
 <template>
   <div class="home-container">
     <aside class="left-panel" v-if="user">

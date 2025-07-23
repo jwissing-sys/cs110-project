@@ -5,11 +5,17 @@
       <span class="timestamp">{{ formattedDate }}</span>
     </div>
 
-    <p>{{ post.content || '[No content]' }}</p>
+    <!-- Spoiler toggle -->
+    <div v-if="post.needsReview && !revealed" class="spoiler-warning">
+      ⚠️ Spoiler alert: This post may contain sensitive content.
+      <button class="reveal-button" @click="revealed = true">Show Spoiler</button>
+    </div>
+
+    <!-- Show content only if not a spoiler or revealed -->
+    <p v-if="!post.needsReview || revealed">{{ post.content || '[No content]' }}</p>
 
     <div v-if="post.flagged" class="flag-label">⚠️ Flagged Post</div>
 
-    <!-- VotingBox shown only to reviewers -->
     <VotingBox
       v-if="post.flagged && isReviewer && post.id && currentUser?.uid"
       :postId="post.id"
@@ -19,7 +25,7 @@
 </template>
 
 <script setup>
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 import VotingBox from './VotingBox.vue'
 
 const props = defineProps({
@@ -29,9 +35,11 @@ const props = defineProps({
   }
 })
 
-// Inject currentUser from parent (e.g., HomeView)
 const currentUser = inject('currentUser')
 const isReviewer = computed(() => currentUser?.value?.role === 'reviewer')
+
+// Show/hide spoiler content
+const revealed = ref(false)
 
 const formattedDate = computed(() => {
   const ts = props.post?.timestamp
@@ -68,5 +76,24 @@ const formattedDate = computed(() => {
   font-weight: bold;
   margin-top: 0.5rem;
 }
-</style>
 
+.spoiler-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.reveal-button {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  background-color: #fffae6;
+  border: 1px solid #d8c88a;
+  border-radius: 4px;
+}
+</style>

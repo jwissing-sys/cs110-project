@@ -2,17 +2,22 @@
   <div class="profile-view" v-if="viewedUser">
     <aside class="left-panel">
       <UserStats :user="viewedUser" />
+      <div v-if="isOwnProfile && viewedUser.strikes > 0" class="strike-warning">
+        ⚠️ You have {{ viewedUser.strikes }} strike{{ viewedUser.strikes > 1 ? 's' : '' }}.
+        After 3 strikes, posting will be temporarily disabled.
+      </div>
     </aside>
 
     <section class="main-feed">
       <PostFeed :userId="viewedUser.id" :title="`Posts by ${viewedUser.email}`" />
     </section>
 
-    <aside class="right-panel" v-if="currentUser?.uid !== viewedUser.id">
+    <aside class="right-panel" v-if="!isOwnProfile">
       <SuggestedFollowers :currentUser="currentUser" />
     </aside>
   </div>
 </template>
+
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
@@ -24,10 +29,15 @@ import { onAuthStateChanged } from 'firebase/auth'
 import UserStats from '../components/UserStats.vue'
 import PostFeed from '../components/PostFeed.vue'
 import SuggestedFollowers from '../components/SuggestedFollowers.vue'
+import { computed } from 'vue'
 
 const route = useRoute()
 const viewedUser = ref(null)
 const currentUser = ref(null)
+
+const isOwnProfile = computed(() => {
+  return currentUser.value?.uid === viewedUser.value?.id
+})
 
 const loadUser = async (userId) => {
   if (!userId) return
@@ -69,7 +79,15 @@ watch(() => route.params.id, (newId) => {
   min-height: 100vh;
   box-sizing: border-box;
 }
-
+.strike-warning {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #ffcc00;
+  background-color: #fff9e6;
+  border-radius: 6px;
+  font-weight: 500;
+  color: #a06100;
+}
 .left-panel,
 .right-panel,
 .main-feed {

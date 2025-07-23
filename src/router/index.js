@@ -12,42 +12,24 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView,
+      component: HomeView
     },
     {
       path: '/login',
       name: 'login',
-      component: () => import('../views/LoginView.vue'),
+      component: () => import('../views/LoginView.vue')
     },
     {
       path: '/flagged-posts-review',
       name: 'FlaggedPostsReview',
       component: FlaggedPostsReview,
-      beforeEnter: async (to, from, next) => {
-        const user = auth.currentUser
-        if (!user) return next('/login')
-
-        const ref = doc(firestore, 'users', user.uid)
-        const snap = await getDoc(ref)
-        const role = snap.exists() ? snap.data().role : 'user'
-
-        role === 'reviewer' || role === 'admin' ? next() : next('/')
-      }
+      meta: { requiresRole: ['reviewer', 'admin'] }
     },
     {
       path: '/moderation-dashboard',
       name: 'ModerationDashboard',
       component: ModerationDashboard,
-      beforeEnter: async (to, from, next) => {
-        const user = auth.currentUser
-        if (!user) return next('/login')
-
-        const ref = doc(firestore, 'users', user.uid)
-        const snap = await getDoc(ref)
-        const role = snap.exists() ? snap.data().role : 'user'
-
-        role === 'admin' ? next() : next('/')
-      }
+      meta: { requiresRole: ['admin'] }
     },
     {
       path: '/users/:id',
@@ -61,5 +43,48 @@ const router = createRouter({
     }
   ]
 })
+
+// Helper to wait for Firebase Auth to load
+function waitForAuthReady() {
+  return new Promise(resolve => {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      unsubscribe()
+      resolve(user)
+    })
+  })
+}
+
+// Global route guard for role-based access
+router.beforeEach(async (to, from, next) => {
+  const requiredRoles = to.meta.requiresRole
+  const user = await waitForAuthReady()
+
+  // No user at all? Block role-restricted pages
+  if (!user) {
+    return requiredRoles ? next('/login') : next()
+  }
+
+  // Fetch Firestore user document
+  const userDoc = await getDoc(doc(firestore, 'users', user.uid))
+  const userData = userDoc.exists() ? userDoc.data() : {}
+
+  // Ban check
+  const bannedUntil = userData.bannedUntil?.toDate?.()
+  const now = new Date()
+  const isBanned = bannedUntil && bannedUntil > now
+
+  if (isBanned && to.path !== '/' && to.path !== '/login') {
+    return next('/') // Force redirect banned users
+  }
+
+  // Role check
+  const userRole = userData.role || 'user'
+  if (requiredRoles && !requiredRoles.includes(userRole)) {
+    return next('/') // Redirect if role doesn't match
+  }
+
+  next()
+})
+
 
 export default router

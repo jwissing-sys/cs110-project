@@ -10,44 +10,116 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore'
+import { ref, watchEffect } from 'vue'
+import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore'
 import { firestore } from '../firebaseResources'
 
 const props = defineProps({
   postId: String,
-  userId: String // current user id
+  userId: String
 })
 
 const hasVoted = ref(false)
 const emit = defineEmits(['vote-submitted'])
 
+const checkVoteStatus = async () => {
+  if (!props.postId || !props.userId) return
+
+  try {
+    const postRef = doc(firestore, 'posts', props.postId)
+    const postSnap = await getDoc(postRef)
+    if (!postSnap.exists()) return
+
+    const currentVotes = postSnap.data().votes || []
+    hasVoted.value = currentVotes.some(v => v.userId === props.userId)
+  } catch (e) {
+    console.error('❌ Failed to check vote status:', e)
+  }
+}
+
+watchEffect(() => {
+  checkVoteStatus()
+})
 
 const submitVote = async (vote) => {
   if (!vote || !props.postId || !props.userId) return
 
-  const postRef = doc(firestore, 'posts', props.postId)
-  const postSnap = await getDoc(postRef)
-  if (!postSnap.exists()) return
+  try {
+    const postRef = doc(firestore, 'posts', props.postId)
+    const postSnap = await getDoc(postRef)
+    if (!postSnap.exists()) return
 
-  const postData = postSnap.data()
-  const currentVotes = postData.votes || []
+    const postData = postSnap.data()
+    const currentVotes = postData.votes || []
 
-  const alreadyVoted = currentVotes.some(v => v.userId === props.userId)
-  if (alreadyVoted) {
+    // Don't allow double voting
+    if (currentVotes.some(v => v.userId === props.userId)) {
+      hasVoted.value = true
+      return
+    }
+
+    const updatedVotes = [...currentVotes, { userId: props.userId, vote }]
+
+    // Status + Flagged defaults
+    let status = null
+    let flagged = true
+
+    if (updatedVotes.length >= 3) {
+      const voteCounts = updatedVotes.reduce((acc, v) => {
+        acc[v.vote] = (acc[v.vote] || 0) + 1
+        return acc
+      }, {})
+
+      const approve = voteCounts.approve || 0
+      const reject = voteCounts.reject || 0
+
+      if (approve >= 2) {
+        status = 'approved'
+        flagged = false
+      } else if (reject >= 2) {
+        status = 'rejected'
+        flagged = false
+
+        // Add strike and optional 24h ban
+        const authorId = postData.authorId
+        if (authorId) {
+          const authorRef = doc(firestore, 'users', authorId)
+          const authorSnap = await getDoc(authorRef)
+
+          if (authorSnap.exists()) {
+            const authorData = authorSnap.data()
+            const currentStrikes = authorData.strikes || 0
+            const newStrikes = currentStrikes + 1
+
+            const updates = { strikes: newStrikes }
+
+            if (newStrikes >= 3) {
+              const banUntil = new Date(Date.now() + 24 * 60 * 60 * 1000)
+              updates.bannedUntil = Timestamp.fromDate(banUntil)
+            }
+
+            await updateDoc(authorRef, updates)
+          }
+        }
+      }
+    }
+
+    await updateDoc(postRef, {
+      votes: updatedVotes,
+      ...(status && { status }),
+      flagged,
+      needsReview: false
+    })
+
     hasVoted.value = true
-    return
+    emit('vote-submitted')
+  } catch (e) {
+    console.error('🔥 Vote failed:', e)
   }
-
-  await updateDoc(postRef, {
-    votes: arrayUnion({ userId: props.userId, vote: vote })
-  })
-
-  hasVoted.value = true
-  emit('vote-submitted') // 👈 trigger parent refresh
-
 }
+
 </script>
+
 
 <style scoped>
 .voting-box {

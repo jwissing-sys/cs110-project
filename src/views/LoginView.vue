@@ -1,11 +1,22 @@
 <template>
-  <div class="login-view">
+  <div class="login-view" v-if="!currentUser">
     <LoginCreateAccount />
   </div>
 </template>
 
 <script setup>
+import { inject, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import LoginCreateAccount from '../components/LoginCreateAccount.vue'
+
+// Inject current user from App.vue
+const currentUser = inject('currentUser')
+const router = useRouter()
+
+// Redirect to home if already logged in
+watch(currentUser, (user) => {
+  if (user) router.push('/')
+}, { immediate: true })
 </script>
 
 <style scoped>

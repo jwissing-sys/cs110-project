@@ -3,6 +3,15 @@
     <nav>
       <RouterLink to="/">Home</RouterLink>
       <RouterLink to="/login">Login/Create</RouterLink>
+
+      <!-- ✅ Show only if role is reviewer or admin -->
+      <RouterLink
+        v-if="currentUser?.role === 'reviewer' || currentUser?.role === 'admin'"
+        to="/flagged-posts-review"
+      >
+        Review Posts
+      </RouterLink>
+
       <button v-if="isLoggedIn" @click="logout">Log Out</button>
     </nav>
   </header>
@@ -10,20 +19,29 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
-import { ref } from 'vue'
+import { ref, inject, watch } from 'vue'
 import { auth } from '../firebaseResources'
 import { signOut } from 'firebase/auth'
-const isLoggedIn = ref(false)
 
-// Detect if a user is signed in
+// Track current user role (injected from App.vue)
+const currentUser = inject('currentUser', ref(null))
+
+// Track whether someone is logged in
+const isLoggedIn = ref(false)
 auth.onAuthStateChanged(user => {
   isLoggedIn.value = !!user
 })
 
+// Handle logout
 const logout = async () => {
   await signOut(auth)
   isLoggedIn.value = false
 }
+
+// Debug currentUser injection
+watch(currentUser, (val) => {
+  console.log('🔍 NavigationBar currentUser:', val)
+})
 </script>
 
 <style scoped>
@@ -50,6 +68,7 @@ nav a {
   text-decoration: none;
   color: #333;
   font-weight: bold;
+  margin-right: 1rem;
 }
 
 nav a.router-link-exact-active {

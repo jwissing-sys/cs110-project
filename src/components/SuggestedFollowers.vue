@@ -136,19 +136,24 @@ const follow = async (target) => {
     <ul v-if="suggestions.length">
       <li v-for="user in suggestions" :key="user.uid">
         <RouterLink :to="`/users/${user.uid}`">{{ user.email }}</RouterLink>
+
+        <!-- Follow button only visible if logged in AND not already followed -->
         <button
-          v-if="!user.followed"
+          v-if="props.currentUser && !user.followed"
           @click="follow(user)"
           :disabled="loadingIds.has(user.uid)"
         >
           {{ loadingIds.has(user.uid) ? 'Following...' : 'Follow' }}
         </button>
-        <span v-else>Followed</span>
+
+        <!-- Label if already followed -->
+        <span v-else-if="props.currentUser && user.followed">Followed</span>
       </li>
     </ul>
     <p v-else>No one new to follow</p>
   </div>
 </template>
+
 
 
 <style scoped>
