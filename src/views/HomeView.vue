@@ -91,12 +91,12 @@ const reloadFeed = () => {
 <style scoped>
 .home-container {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 1fr 3fr 1.5fr; /* More space for main feed */
+  gap: 2rem;
   background-color: #f9f9f9;
   padding: 2rem;
   box-sizing: border-box;
-  max-width: 1200px;
+  max-width: 1400px; /* Slightly wider container */
   margin: 0 auto;
   min-height: 100vh;
 }
@@ -109,6 +109,10 @@ const reloadFeed = () => {
   padding: 1.5rem;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.main-feed {
+  min-width: 600px;
 }
 
 @media (max-width: 900px) {
